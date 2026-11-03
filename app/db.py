@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
     full_name TEXT NOT NULL,
     exam_urgency INTEGER NOT NULL DEFAULT 0,   -- 0..10, higher = exam sooner
     need_bonus REAL NOT NULL DEFAULT 0,        -- documented extra need (0..2 shares)
+    exam_targets TEXT NOT NULL DEFAULT '',     -- explicit course/exam IDs, e.g. "CSC101,PHY102"
     created_at REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS weekly_pool (
@@ -54,7 +55,14 @@ CREATE TABLE IF NOT EXISTS materials (
     kind TEXT NOT NULL CHECK(kind IN ('summary','quiz','condense')),
     content TEXT NOT NULL,
     model TEXT,
+    course_tag TEXT NOT NULL DEFAULT '',       -- explicit course/week ID, e.g. CSC101-W3
     created_by INTEGER NOT NULL REFERENCES users(id),
+    created_at REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS material_reads (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    material_id INTEGER NOT NULL REFERENCES materials(id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
     created_at REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS ai_cache (
@@ -85,6 +93,11 @@ def init_db(path):
         cols = [r["name"] for r in con.execute("PRAGMA table_info(users)")]
         if "need_bonus" not in cols:
             con.execute("ALTER TABLE users ADD COLUMN need_bonus REAL NOT NULL DEFAULT 0")
+        if "exam_targets" not in cols:
+            con.execute("ALTER TABLE users ADD COLUMN exam_targets TEXT NOT NULL DEFAULT ''")
+        mcols = [r["name"] for r in con.execute("PRAGMA table_info(materials)")]
+        if "course_tag" not in mcols:
+            con.execute("ALTER TABLE materials ADD COLUMN course_tag TEXT NOT NULL DEFAULT ''")
         if con.execute("SELECT COUNT(*) c FROM weekly_pool").fetchone()["c"] == 0:
             con.execute("INSERT INTO weekly_pool (id, total_minutes) VALUES (1, ?)", (6000,))
 
@@ -126,12 +139,49 @@ def usage_overview(path, week_start):
             "WHERE u.role='student' GROUP BY u.id ORDER BY u.full_name", (week_start,))]
 
 
-def add_material(path, title, kind, content, model, created_by):
+def add_material(path, title, kind, content, model, created_by, course_tag=""):
     with connect(path) as con:
         cur = con.execute(
-            "INSERT INTO materials (title, kind, content, model, created_by, created_at)"
-            " VALUES (?,?,?,?,?,?)", (title, kind, content, model, created_by, now()))
+            "INSERT INTO materials (title, kind, content, model, course_tag, created_by, created_at)"
+            " VALUES (?,?,?,?,?,?,?)", (title, kind, content, model, course_tag, created_by, now()))
         return cur.lastrowid
+
+
+def log_material_read(path, material_id, user_id):
+    with connect(path) as con:
+        con.execute(
+            "INSERT INTO material_reads (material_id, user_id, created_at) VALUES (?,?,?)",
+            (material_id, user_id, now()))
+
+
+def material_read_stats(path):
+    """Measured library usage: total reads, distinct readers, and the text
+    bytes of the materials actually read (each read counted per open)."""
+    with connect(path) as con:
+        r = con.execute(
+            "SELECT COUNT(*) AS reads, COUNT(DISTINCT user_id) AS readers FROM material_reads"
+        ).fetchone()
+        b = con.execute(
+            "SELECT COALESCE(SUM(LENGTH(m.content)),0) AS bytes FROM material_reads rd"
+            " JOIN materials m ON m.id = rd.material_id").fetchone()
+    return {"library_reads": r["reads"], "distinct_readers": r["readers"],
+            "read_text_bytes": b["bytes"]}
+
+
+def list_materials_for_targets(path, targets, limit=6):
+    """Materials whose course_tag matches any of the user's registered
+    course/exam IDs (prefix match: CSC101 matches CSC101-W3)."""
+    tags = [t.strip().upper() for t in targets.split(",") if t.strip()]
+    if not tags:
+        return []
+    out = []
+    for m in list_materials(path, limit=200):
+        tag = (m.get("course_tag") or "").upper()
+        if tag and any(tag.startswith(t) for t in tags):
+            out.append(m)
+        if len(out) >= limit:
+            break
+    return out
 
 
 def list_materials(path, limit=50):

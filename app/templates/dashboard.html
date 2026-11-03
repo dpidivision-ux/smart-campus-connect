@@ -43,6 +43,18 @@
   </div>
 </div>
 
+{% if targeted %}
+<div class="card">
+  <h2>For your registered exams ({{ user.exam_targets }})</h2>
+  <p class="muted">Matched by the course/exam IDs on your student record - these open over the campus network with no internet.</p>
+  <table><tr><th>Title</th><th>Course/exam ID</th><th>Type</th></tr>
+  {% for m in targeted %}<tr>
+    <td><a href="{{ url_for('main.material_detail', material_id=m.id) }}">{{ m.title }}</a></td>
+    <td><span class="pill cache">{{ m.course_tag }}</span></td>
+    <td>{{ m.kind }}</td></tr>{% endfor %}
+  </table>
+</div>
+{% endif %}
 <div class="card">
   <h2>Study library <a class="btn small secondary" style="float:right" href="{{ url_for('main.materials') }}">Open library</a></h2>
   {% if materials %}

@@ -68,8 +68,9 @@ def dashboard(user):
     used = db.usage_this_week(db_path, user["id"], week)
     jobs = ai_module.list_jobs(db_path, limit=8)
     materials = db.list_materials(db_path, limit=6)
+    targeted = db.list_materials_for_targets(db_path, user.get("exam_targets", "") or "")
     return render_template("dashboard.html", user=user, mine=mine, used=used, week=week,
-                           jobs=jobs, materials=materials,
+                           jobs=jobs, materials=materials, targeted=targeted,
                            ai_live=ai_module.endpoint_configured(),
                            ai_model=ai_module.DEFAULT_MODEL)
 
@@ -95,15 +96,19 @@ def admin(user):
         if action == "set_pool":
             db.set_pool(db_path, int(request.form["total_minutes"]))
         elif action == "add_student":
-            auth.create_user(db_path, request.form["username"].strip(),
-                             request.form["password"], "student",
-                             request.form["full_name"].strip(),
-                             int(request.form.get("exam_urgency", 0)))
+            uid = auth.create_user(db_path, request.form["username"].strip(),
+                                   request.form["password"], "student",
+                                   request.form["full_name"].strip(),
+                                   int(request.form.get("exam_urgency", 0)))
+            with db.connect(db_path) as con:
+                con.execute("UPDATE users SET exam_targets=? WHERE id=?",
+                            (request.form.get("exam_targets", "").strip(), uid))
         elif action == "update_student":
             with db.connect(db_path) as con:
-                con.execute("UPDATE users SET exam_urgency=?, need_bonus=? WHERE id=?",
+                con.execute("UPDATE users SET exam_urgency=?, need_bonus=?, exam_targets=? WHERE id=?",
                             (int(request.form["exam_urgency"]),
                              float(request.form["need_bonus"]),
+                             request.form.get("exam_targets", "").strip(),
                              int(request.form["user_id"])))
         elif action == "run_allocation":
             with db.connect(db_path) as con:
@@ -117,7 +122,7 @@ def admin(user):
         return redirect(url_for("main.admin"))
     with db.connect(db_path) as con:
         students = [dict(r) for r in con.execute(
-            "SELECT id, username, full_name, exam_urgency, need_bonus FROM users"
+            "SELECT id, username, full_name, exam_urgency, need_bonus, exam_targets FROM users"
             " WHERE role='student' ORDER BY full_name")]
         allocs = [dict(r) for r in con.execute(
             "SELECT a.*, u.full_name FROM allocations a JOIN users u ON u.id=a.user_id"
@@ -126,6 +131,7 @@ def admin(user):
                            students=students, allocs=allocs, week=week,
                            usage=db.usage_overview(db_path, week),
                            stats=ai_module.ai_stats(db_path),
+                           quality=ai_module.quality_check(),
                            ai_live=ai_module.endpoint_configured(),
                            ai_model=ai_module.DEFAULT_MODEL)
 
@@ -157,7 +163,8 @@ def ai_publish(user, job_id):
     if not job or job["status"] != "done":
         abort(400)
     title = request.form.get("title", "").strip() or f"{job['kind'].title()} #{job_id}"
-    db.add_material(_db(), title, job["kind"], job["result"], job["model"], user["id"])
+    db.add_material(_db(), title, job["kind"], job["result"], job["model"], user["id"],
+                    course_tag=request.form.get("course_tag", "").strip())
     return redirect(url_for("main.materials"))
 
 
@@ -174,4 +181,5 @@ def material_detail(user, material_id):
     m = db.get_material(_db(), material_id)
     if not m:
         abort(404)
+    db.log_material_read(_db(), material_id, user["id"])
     return render_template("material_detail.html", user=user, m=m)

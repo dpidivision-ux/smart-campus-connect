@@ -12,6 +12,7 @@
   {% if user.role in ('admin','lecturer') and job.status == 'done' %}
   <form method="post" action="{{ url_for('main.ai_publish', job_id=job.id) }}" style="margin-top:14px">
     <div class="row"><input name="title" placeholder="Library title (e.g. CSC 101 week 3 summary)">
+    <input name="course_tag" placeholder="Course/exam ID (e.g. CSC101-W3)" style="max-width:230px">
     <button class="btn" type="submit">Publish to student library</button></div>
   </form>
   {% endif %}

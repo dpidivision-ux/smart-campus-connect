@@ -3,9 +3,10 @@
   <h2>Study library</h2>
   <p class="muted">Published by lecturers. Everything here is stored on the campus server and opens with zero connectivity.</p>
   {% if materials %}
-  <table><tr><th>Title</th><th>Type</th><th>Model</th><th>By</th></tr>
+  <table><tr><th>Title</th><th>Course/exam ID</th><th>Type</th><th>Model</th><th>By</th></tr>
   {% for m in materials %}<tr>
     <td><a href="{{ url_for('main.material_detail', material_id=m.id) }}">{{ m.title }}</a></td>
+    <td>{% if m.course_tag %}<span class="pill cache">{{ m.course_tag }}</span>{% else %}<span class="muted">-</span>{% endif %}</td>
     <td>{{ m.kind }}</td>
     <td>{% if m.model == 'offline-fallback' %}<span class="pill off">fallback</span>{% else %}<span class="pill live">{{ m.model or 'cache' }}</span>{% endif %}</td>
     <td>{{ m.author }}</td></tr>{% endfor %}

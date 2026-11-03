@@ -9,12 +9,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from app import auth, db
 
 STUDENTS = [
-    ("adaeze",  "Adaeze Okafor",   9),
-    ("chidi",   "Chidi Eze",       2),
-    ("ngozi",   "Ngozi Nnamdi",    7),
-    ("emeka",   "Emeka Obi",       0),
-    ("fatima",  "Fatima Bello",    5),
-    ("tunde",   "Tunde Adeyemi",   8),
+    ("adaeze",  "Adaeze Okafor",   9, "CSC101"),
+    ("chidi",   "Chidi Eze",       2, "PHY102"),
+    ("ngozi",   "Ngozi Nnamdi",    7, "CSC101,PHY102"),
+    ("emeka",   "Emeka Obi",       0, ""),
+    ("fatima",  "Fatima Bello",    5, "CSC101"),
+    ("tunde",   "Tunde Adeyemi",   8, "CSC101"),
 ]
 
 
@@ -33,8 +33,10 @@ def seed(path):
 
     mk("admin", "admin", "Portal Administrator")
     mk("lecturer", "lecturer", "Demo Lecturer (synthetic)")
-    for uname, name, urgency in STUDENTS:
+    for uname, name, urgency, targets in STUDENTS:
         mk(uname, "student", name, urgency)
+        with db.connect(path) as con:
+            con.execute("UPDATE users SET exam_targets=? WHERE username=?", (targets, uname))
 
     with db.connect(path) as con:
         con.execute("UPDATE users SET need_bonus=1.0 WHERE username='fatima'")
@@ -44,6 +46,33 @@ def seed(path):
         row = con.execute("SELECT id FROM users WHERE username='adaeze'").fetchone()
     if row:
         db.log_usage(path, row["id"], week, 45, "Downloading CSC 101 materials")
+
+    # Publish two synthetic CSC101-W3 study materials through the same AI
+    # pipeline the UI uses (offline fallback until a model endpoint is
+    # configured - content is labeled accordingly), then record a few
+    # library reads so the measured-impact panel has real demo counts.
+    from app import ai_module
+    with db.connect(path) as con:
+        lecturer = con.execute("SELECT id FROM users WHERE username='lecturer'").fetchone()["id"]
+        student_ids = {r["username"]: r["id"] for r in con.execute(
+            "SELECT id, username FROM users WHERE role='student'")}
+    if not db.list_materials(path):
+        lecture = open(os.path.join(os.path.dirname(__file__), "lecture_csc101.txt"),
+                       encoding="utf-8").read()
+        jid1, _, _ = ai_module.submit_job(path, "summary", lecture)
+        job1 = ai_module.get_job(path, jid1)
+        mid1 = db.add_material(path, "CSC101-W3 lecture summary (synthetic)",
+                               "summary", job1["result"], job1["model"], lecturer,
+                               course_tag="CSC101-W3")
+        jid2, _, _ = ai_module.submit_job(path, "quiz", lecture)
+        job2 = ai_module.get_job(path, jid2)
+        mid2 = db.add_material(path, "CSC101-W3 revision quiz (synthetic)",
+                               "quiz", job2["result"], job2["model"], lecturer,
+                               course_tag="CSC101-W3")
+        for uname, mids in (("adaeze", (mid1, mid2)), ("tunde", (mid1,)),
+                            ("ngozi", (mid1, mid2)), ("fatima", (mid2,))):
+            for mid in mids:
+                db.log_material_read(path, mid, student_ids[uname])
 
     out = os.path.join(os.path.dirname(__file__), "DEMO_CREDENTIALS.txt")
     with open(out, "w") as fh:

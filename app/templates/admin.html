@@ -22,12 +22,47 @@
       {% if ai_live %}<span class="pill live">live: {{ ai_model }}</span>{% else %}<span class="pill off">offline mode</span>{% endif %}
     </h2>
     <table>
-      <tr><th>Live model calls</th><td>{{ stats.live_calls }}</td></tr>
+      <tr><th>Live model calls recorded</th><td>{{ stats.live_calls }}</td></tr>
       <tr><th>Cache hits (no model call, no external request)</th><td>{{ stats.cache_hits }}</td></tr>
       <tr><th>Offline fallback served (labeled, not AI)</th><td>{{ stats.fallback_served }}</td></tr>
-      <tr><th>Text reduced by condensation</th><td>{{ (stats.condense_saved_bytes / 1024)|round(1) }} KB</td></tr>
+      <tr><th>Text reduced by condensation</th><td>{{ (stats.condense_saved_bytes / 1024)|round(1) }} KB <span class="muted">(source text bytes minus output text bytes)</span></td></tr>
     </table>
   </div>
+</div>
+
+<div class="card">
+  <h2>Measured usage (counted in this database)</h2>
+  <table>
+    <tr><th>Library reads (material page opens)</th><td>{{ stats.library_reads }}</td></tr>
+    <tr><th>Distinct readers</th><td>{{ stats.distinct_readers }}</td></tr>
+    <tr><th>Text bytes read from the local library</th><td>{{ (stats.read_text_bytes / 1024)|round(1) }} KB</td></tr>
+    <tr><th>Source text processed by AI jobs</th><td>{{ (stats.source_text_bytes / 1024)|round(1) }} KB</td></tr>
+    <tr><th>Output text served</th><td>{{ (stats.output_text_bytes / 1024)|round(1) }} KB</td></tr>
+  </table>
+  <p class="muted" style="margin-top:10px"><strong>Estimate, not a measurement:</strong>
+  {{ (stats.estimated_avoided_fetch_bytes / 1024)|round(1) }} KB of downloads would have occurred
+  <em>under this comparison scenario</em>: without the on-campus library, every library read above
+  would have fetched the full material text once over the campus internet. Text bytes only -
+  real page downloads would transfer more (markup, images).</p>
+</div>
+
+<div class="card">
+  <h2>Same-source quality check - explicit rubric</h2>
+  <p class="muted">Source: {{ quality.source }}. Rubric: the {{ quality.rubric|length }} key concepts a
+  study summary must keep (fixed list, substring match - transparent, ignores paraphrase).</p>
+  <table>
+    <tr><th>Method</th><th>Rubric coverage</th><th>Missing concepts</th></tr>
+    <tr>
+      <td>Offline fallback (extractive, not AI)</td>
+      <td>{{ quality.fallback.found|length }} / {{ quality.rubric|length }}</td>
+      <td class="muted">{{ quality.fallback.missing|join(', ') or 'none' }}</td>
+    </tr>
+    <tr>
+      <td>{% if quality.model %}Live model: {{ quality.model.name }}{% else %}Live model{% endif %}</td>
+      <td>{% if quality.model %}{{ quality.model.found|length }} / {{ quality.rubric|length }}{% else %}pending - no live model call has succeeded yet{% endif %}</td>
+      <td class="muted">{% if quality.model %}{{ quality.model.missing|join(', ') or 'none' }}{% else %}-{% endif %}</td>
+    </tr>
+  </table>
 </div>
 
 <div class="card">
@@ -44,15 +79,16 @@
 
 <div class="card">
   <h2>Students</h2>
-  <table><tr><th>Name</th><th>Username</th><th>Exam urgency (0-10)</th><th>Need bonus (0-2)</th><th></th></tr>
+  <table><tr><th>Name</th><th>Username</th><th>Exam urgency (0-10)</th><th>Need bonus (0-2)</th><th>Course/exam IDs</th><th></th></tr>
   {% for s in students %}<tr>
     <td>{{ s.full_name }}</td><td class="muted">{{ s.username }}</td>
-    <td colspan="2">
+    <td colspan="3">
       <form method="post" class="row" style="align-items:center">
         <input type="hidden" name="action" value="update_student">
         <input type="hidden" name="user_id" value="{{ s.id }}">
         <input name="exam_urgency" type="number" min="0" max="10" value="{{ s.exam_urgency }}">
         <input name="need_bonus" type="number" min="0" max="2" step="0.25" value="{{ s.need_bonus }}">
+        <input name="exam_targets" placeholder="CSC101,PHY102" value="{{ s.exam_targets }}" style="min-width:150px">
     </td>
     <td><button class="btn small secondary" type="submit">Save</button></form></td></tr>{% endfor %}
   </table>
@@ -67,6 +103,7 @@
       <div><label>Username</label><input name="username" required></div>
       <div><label>Temporary password</label><input name="password" required></div>
       <div><label>Exam urgency (0-10)</label><input name="exam_urgency" type="number" min="0" max="10" value="0"></div>
+      <div><label>Course/exam IDs</label><input name="exam_targets" placeholder="CSC101,PHY102"></div>
     </div>
     <div style="margin-top:12px"><button type="submit">Add student</button></div>
   </form>

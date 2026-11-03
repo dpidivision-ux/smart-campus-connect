@@ -46,6 +46,7 @@ def authenticate(db_path, username, password):
         session["user_id"] = row["id"]
         session["role"] = row["role"]
         session["full_name"] = row["full_name"]
+        session["exam_targets"] = row["exam_targets"] if "exam_targets" in row.keys() else ""
         return True
     return False
 
@@ -54,7 +55,8 @@ def current_user():
     uid = session.get("user_id")
     if not uid:
         return None
-    return {"id": uid, "role": session.get("role"), "full_name": session.get("full_name")}
+    return {"id": uid, "role": session.get("role"), "full_name": session.get("full_name"),
+            "exam_targets": session.get("exam_targets", "")}
 
 
 def logout():

@@ -24,6 +24,9 @@ import requests
 from . import db
 
 DEFAULT_MODEL = os.environ.get("AI_MODEL", "meta-models/muse-spark-open-1026")
+DEMO_LECTURE_PATH = os.environ.get(
+    "DEMO_LECTURE_PATH",
+    os.path.join(os.path.dirname(__file__), "..", "demo", "lecture_csc101.txt"))
 BASE_URL = os.environ.get("AI_BASE_URL", "")          # e.g. https://api.baseten.co/v1
 API_KEY = os.environ.get("AI_API_KEY", "")
 TIMEOUT = float(os.environ.get("AI_TIMEOUT", "60"))
@@ -127,23 +130,89 @@ def submit_job(db_path, kind, source_text):
     return job_id, "done", result
 
 
+# Explicit key-concept rubric for the synthetic CSC101 Week 3 demo lecture
+# (demo/lecture_csc101.txt). Quality is scored as rubric coverage, not by
+# output length: a good study summary must keep these concepts.
+CSC101_W3_KEY_CONCEPTS = [
+    "algorithm",
+    "time complexity",
+    "big-o",
+    "binary search",
+    "o(log n)",
+    "bubble sort",
+    "merge sort",
+    "data structures",
+    "stack",
+    "queue",
+]
+
+
+def concept_coverage(text):
+    """Which rubric concepts appear in a text (case-insensitive). Returns
+    (found, missing) lists. Simple substring match - transparent and
+    reproducible, at the cost of ignoring paraphrase."""
+    low = text.lower()
+    found = [c for c in CSC101_W3_KEY_CONCEPTS if c in low]
+    missing = [c for c in CSC101_W3_KEY_CONCEPTS if c not in low]
+    return found, missing
+
+
+def quality_check():
+    """Same-source comparison with an explicit rubric: the deterministic
+    offline fallback vs the configured model (when reachable). Returns None
+    on the model side when no live call has succeeded - never substituted
+    by a second fallback pass."""
+    source = open(DEMO_LECTURE_PATH, encoding="utf-8").read()
+    fb_found, fb_missing = concept_coverage(_extractive_fallback(source, max_sentences=8))
+    result = {"source": "CSC101-W3 synthetic lecture notes",
+              "rubric": CSC101_W3_KEY_CONCEPTS,
+              "fallback": {"found": fb_found, "missing": fb_missing},
+              "model": None}
+    if endpoint_configured():
+        try:
+            out = _call_model("summary", source)
+            m_found, m_missing = concept_coverage(out)
+            result["model"] = {"name": DEFAULT_MODEL, "found": m_found,
+                               "missing": m_missing, "output": out}
+        except Exception:
+            result["model"] = None
+    return result
+
+
 def ai_stats(db_path):
-    """Evidence for the offline-first story: cache hits vs live model calls,
-    and text bytes reduced by condensation."""
+    """Measured evidence for the offline-first story. Everything here is
+    counted from this demo database; the one estimate is labeled with its
+    comparison scenario."""
     with db.connect(db_path) as con:
         rows = [dict(r) for r in con.execute(
             "SELECT model, COUNT(*) AS n FROM ai_jobs WHERE status='done' GROUP BY model")]
         condense = con.execute(
             "SELECT source_text, result FROM ai_jobs WHERE kind='condense' AND status='done'"
             " AND model != 'offline-fallback'").fetchall()
+        totals = con.execute(
+            "SELECT COALESCE(SUM(LENGTH(source_text)),0) AS src,"
+            " COALESCE(SUM(LENGTH(result)),0) AS out_ FROM ai_jobs WHERE status='done'"
+        ).fetchone()
     by_model = { (r["model"] or "unknown"): r["n"] for r in rows }
     saved_bytes = sum(max(0, len(r["source_text"]) - len(r["result"] or "")) for r in condense)
+    reads = db.material_read_stats(db_path)
+    # Comparison scenario (explicit): without the on-campus library, every
+    # library read would have downloaded the full material text once over
+    # the campus internet. The estimate counts text bytes only - a real
+    # web download would transfer more (page markup, images).
+    estimated_avoided = reads["read_text_bytes"]
     return {"by_model": by_model,
             "cache_hits": by_model.get("cache", 0),
             "live_calls": sum(n for m, n in by_model.items()
                               if m not in ("cache", "offline-fallback", "unknown")),
             "fallback_served": by_model.get("offline-fallback", 0),
-            "condense_saved_bytes": saved_bytes}
+            "condense_saved_bytes": saved_bytes,
+            "source_text_bytes": totals["src"],
+            "output_text_bytes": totals["out_"],
+            "library_reads": reads["library_reads"],
+            "distinct_readers": reads["distinct_readers"],
+            "read_text_bytes": reads["read_text_bytes"],
+            "estimated_avoided_fetch_bytes": estimated_avoided}
 
 
 def list_jobs(db_path, limit=20):
