@@ -1,9 +1,9 @@
 """Assemble final demo video: title cards + recorded segments + narration WAVs.
 Usage: python3 demo/assemble.py [audio_dir]  (expects n<i>.wav for segment i)
-Segments with a missing WAV are skipped (e.g. seg4 held for live-model outcome).
+Final mode requires every narration file; --preview skips missing narration.
 Each segment gets a 1.2s tail pad (freeze frame + audio silence) for breathing room.
 """
-import os, shutil, subprocess, sys, tempfile
+import argparse, os, shutil, subprocess, sys, tempfile
 
 FFMPEG = shutil.which("ffmpeg")
 TAIL = 1.2
@@ -29,7 +29,7 @@ def run(cmd):
     subprocess.run(cmd, check=True, capture_output=True)
 
 def build_part(i, kind, src, wav, out):
-    target = dur(wav) + TAIL
+    target = max(dur(wav), dur(src) if kind == "seg" else 0) + TAIL
     if kind == "card":
         run([FFMPEG, "-y", "-loop", "1", "-i", src, "-i", wav,
              "-vf", "scale=1920:1080,format=yuv420p",
@@ -39,8 +39,9 @@ def build_part(i, kind, src, wav, out):
              "-c:a", "aac", "-ar", "48000", out])
     else:
         vd = dur(src)
-        ratio = target / vd
-        vf = f"setpts={ratio}*PTS,fps=30,scale=1920:1080,format=yuv420p"
+        # Preserve natural action speed. Freeze only after footage ends.
+        pad = max(0.0, target - vd)
+        vf = f"setpts=PTS-STARTPTS,fps=30,scale=1920:1080,format=yuv420p,tpad=stop_mode=clone:stop_duration={pad}"
         run([FFMPEG, "-y", "-i", src, "-i", wav,
              "-vf", vf, "-af", f"apad=whole_dur={target}",
              "-t", str(target), "-r", "30",
@@ -48,7 +49,13 @@ def build_part(i, kind, src, wav, out):
              "-c:a", "aac", "-ar", "48000", out])
     return target
 
-def main(audio_dir):
+def main(audio_dir, preview=False):
+    missing = [i for i in PARTS if not os.path.exists(f"{audio_dir}/n{i}.wav")]
+    if missing and not preview:
+        raise SystemExit(f"Final render blocked: missing narration segments {missing}. Use --preview for an internal incomplete cut.")
+    global OUT
+    OUT = "video/out/preflight" if preview else "video/out/final"
+    os.makedirs(OUT, exist_ok=True)
     parts, total = [], 0.0
     for i in sorted(PARTS):
         wav = f"{audio_dir}/n{i}.wav"
@@ -64,11 +71,15 @@ def main(audio_dir):
     for p in parts:
         lst.write(f"file '{os.path.abspath(p)}'\n")
     lst.close()
-    final = f"{OUT}/smart-campus-connect-demo.mp4"
+    final = f"{OUT}/smart-campus-connect-{'INCOMPLETE-PREVIEW' if preview else 'demo'}.mp4"
     run([FFMPEG, "-y", "-f", "concat", "-safe", "0", "-i", lst.name,
          "-c:v", "libx264", "-preset", "fast", "-crf", "20",
          "-c:a", "aac", "-ar", "48000", final])
     print(f"FINAL {final}  {total:.1f}s ({total/60:.2f} min)")
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "video/audio")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("audio_dir", nargs="?", default="video/audio")
+    parser.add_argument("--preview", action="store_true")
+    args = parser.parse_args()
+    main(args.audio_dir, args.preview)
