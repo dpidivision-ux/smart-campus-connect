@@ -21,8 +21,19 @@ expensive and students get limited online hours.
    call. Lecturers publish results to a library students can open over the
    campus network with no internet. When no model endpoint is reachable, a
    clearly-labeled non-AI extractive fallback keeps the tools usable - it
-   is never presented as model output.
-4. **Runs on a campus server.** Flask + SQLite, local role-based accounts
+   is never presented as model output, and its quiz mode serves extracted
+   key sentences for self-testing, never implied to be generated questions.
+4. **Exam-targeted library.** Students carry explicit course/exam IDs
+   (e.g. CSC101); published materials carry course tags (e.g. CSC101-W3),
+   and the dashboard surfaces exactly the materials matching a student's
+   registered exams.
+5. **Measured usage panel.** The admin page counts what the demo database
+   actually records: library reads, distinct readers, cache hits, live
+   model calls, labeled fallback servings, and text bytes in and out. The
+   single estimate (downloads avoided) is labeled with its comparison
+   scenario. A same-source quality check scores fallback and model output
+   against a fixed key-concept rubric - not by output length.
+6. **Runs on a campus server.** Flask + SQLite, local role-based accounts
    (student / lecturer / admin) - no external identity provider needed on
    an isolated network.
 
