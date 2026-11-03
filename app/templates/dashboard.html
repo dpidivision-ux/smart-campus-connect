@@ -28,7 +28,7 @@
     </h2>
     <form method="post" action="{{ url_for('main.ai_submit') }}">
       <label>Paste lecture notes or a web article</label>
-      <textarea name="source_text" required placeholder="Paste text here. It stays on the campus server."></textarea>
+      <textarea name="source_text" required placeholder="Paste demo notes or an article. Live AI requests send this text to the configured model provider."></textarea>
       <label>What do you need?</label>
       <div class="row">
         <select name="kind">
