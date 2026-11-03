@@ -1,11 +1,9 @@
 """Offline-first AI module: lecture summaries and quiz generation.
 
-Built for Meta's open-weight models (Muse Spark Open / Muse Glimmer),
-served through any OpenAI-compatible endpoint:
-
-  * Meta Model API            (Muse Spark series)
-  * a partner endpoint        (Baseten / Modal / Fireworks hosting muse-spark-open)
-  * a local server            (Muse Glimmer on a campus PC via llama.cpp / LM Studio)
+Uses an OpenAI-compatible chat-completions endpoint. The prototype has
+been tested with Meta Llama 3.3 70B through Cloudflare Workers AI.
+Qualifying Muse access is pending. No local Muse deployment is tested.
+Each provider/model requires a successful call before compatibility is claimed.
 
 The endpoint is configuration, not code: set AI_BASE_URL, AI_API_KEY,
 AI_MODEL. No endpoint configured or unreachable -> jobs stay QUEUED in
@@ -49,7 +47,9 @@ QUIZ_PROMPT = (
 
 
 def _cache_key(kind, text):
-    return hashlib.sha256(f"{kind}:{text}".encode()).hexdigest()
+    namespace = json.dumps([BASE_URL.rstrip("/"), DEFAULT_MODEL, kind, text],
+                           ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(namespace.encode()).hexdigest()
 
 
 def endpoint_configured():
