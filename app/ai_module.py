@@ -116,9 +116,19 @@ def submit_job(db_path, kind, source_text):
         except Exception:
             result = None
     if result is None:
-        # Offline or endpoint failure: deterministic fallback, clearly labeled.
-        result = ("OFFLINE FALLBACK (no model call succeeded yet; this extractive "
-                  "summary is generated locally without AI):\n" + _extractive_fallback(source_text))
+        # Offline or endpoint failure: deterministic fallback, clearly labeled
+        # per task type - the quiz fallback is an excerpt for self-testing,
+        # never implied to be generated questions.
+        headers = {
+            "summary": ("OFFLINE FALLBACK (no model call succeeded yet; this extractive "
+                        "summary is generated locally without AI):"),
+            "condense": ("OFFLINE FALLBACK (no model call succeeded yet; this extractive "
+                         "condensation is generated locally without AI):"),
+            "quiz": ("OFFLINE FALLBACK (no model call succeeded yet; these key sentences are "
+                     "extracted locally without AI for self-testing - they are NOT generated "
+                     "quiz questions):"),
+        }
+        result = headers[kind] + "\n" + _extractive_fallback(source_text)
         model = "offline-fallback"
 
     with db.connect(db_path) as con:

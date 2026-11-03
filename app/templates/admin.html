@@ -1,5 +1,6 @@
 {% extends "base.html" %}{% block content %}
 <div class="grid">
+  {% if user.role == 'admin' %}
   <div class="card">
     <h2>Weekly pool</h2>
     <div class="big">{{ pool }} min</div>
@@ -16,6 +17,7 @@
       <p class="muted" style="margin-top:6px">Splits the pool: a guaranteed 120-min floor per student when the pool allows, remainder weighted by exam urgency and documented need. Every student sees the reason for their number.</p>
     </form>
   </div>
+  {% endif %}
 
   <div class="card">
     <h2>AI system status
@@ -31,13 +33,13 @@
 </div>
 
 <div class="card">
-  <h2>Measured usage (counted in this database)</h2>
+  <h2>Measured usage (synthetic demo data, counted in this database)</h2>
   <table>
     <tr><th>Library reads (material page opens)</th><td>{{ stats.library_reads }}</td></tr>
     <tr><th>Distinct readers</th><td>{{ stats.distinct_readers }}</td></tr>
     <tr><th>Text bytes read from the local library</th><td>{{ (stats.read_text_bytes / 1024)|round(1) }} KB</td></tr>
-    <tr><th>Source text processed by AI jobs</th><td>{{ (stats.source_text_bytes / 1024)|round(1) }} KB</td></tr>
-    <tr><th>Output text served</th><td>{{ (stats.output_text_bytes / 1024)|round(1) }} KB</td></tr>
+    <tr><th>Source text submitted to AI jobs (includes offline-fallback jobs)</th><td>{{ (stats.source_text_bytes / 1024)|round(1) }} KB</td></tr>
+    <tr><th>Output text served (includes labeled fallback output)</th><td>{{ (stats.output_text_bytes / 1024)|round(1) }} KB</td></tr>
   </table>
   <p class="muted" style="margin-top:10px"><strong>Estimate, not a measurement:</strong>
   {{ (stats.estimated_avoided_fetch_bytes / 1024)|round(1) }} KB of downloads would have occurred
@@ -47,7 +49,7 @@
 </div>
 
 <div class="card">
-  <h2>Same-source quality check - explicit rubric</h2>
+  <h2>Same-source quality check - explicit rubric (synthetic demo source)</h2>
   <p class="muted">Source: {{ quality.source }}. Rubric: the {{ quality.rubric|length }} key concepts a
   study summary must keep (fixed list, substring match - transparent, ignores paraphrase).</p>
   <table>
@@ -77,6 +79,7 @@
   {% else %}<p class="muted">Not run yet this week.</p>{% endif %}
 </div>
 
+{% if user.role == 'admin' %}
 <div class="card">
   <h2>Students</h2>
   <table><tr><th>Name</th><th>Username</th><th>Exam urgency (0-10)</th><th>Need bonus (0-2)</th><th>Course/exam IDs</th><th></th></tr>
@@ -108,4 +111,5 @@
     <div style="margin-top:12px"><button type="submit">Add student</button></div>
   </form>
 </div>
+{% endif %}
 {% endblock %}

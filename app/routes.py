@@ -93,6 +93,11 @@ def admin(user):
     week = week_start_str()
     if request.method == "POST":
         action = request.form.get("action")
+        # Allocation and student management are administrator actions.
+        # Lecturers use this page for AI status and the measured panel only.
+        if action in ("set_pool", "run_allocation", "add_student", "update_student") \
+                and user["role"] != "admin":
+            abort(403)
         if action == "set_pool":
             db.set_pool(db_path, int(request.form["total_minutes"]))
         elif action == "add_student":
