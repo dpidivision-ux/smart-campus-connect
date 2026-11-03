@@ -65,7 +65,7 @@ def main():
 
             card(pw, "s1-title.png", "Smart Campus Connect",
                  "Fair internet hours and offline-first AI study tools<br>for the University of Nigeria, Nsukka")
-            card(pw, "s6-close.png", "Built with Meta open-weight models",
+            card(pw, "s6-close.png", "Smart Campus Connect",
                  "Meta Global AI Developer Hackathon 2026 &middot; Build for Your World")
 
             import contextlib
