@@ -39,8 +39,10 @@ def seg(pw, name, actions):
     pg.goto(BASE + "/login"); pg.wait_for_load_state("networkidle")
     actions(pg)
     pg.wait_for_timeout(400)
+    video = pg.video
     ctx.close()  # finalizes video
-    saved = [f for f in os.listdir(SEGS) if f.endswith(".webm") and not f.startswith(name)]
+    video.save_as(os.path.join(SEGS, name + ".webm"))
+    video.delete()
     return
 
 
