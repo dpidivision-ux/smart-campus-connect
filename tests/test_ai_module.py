@@ -41,3 +41,24 @@ def test_quiz_prompt_shape():
     job_id, status, result = ai_module.submit_job(path, "quiz", LECTURE)
     assert status == "queued" and result
     assert "NOT generated quiz questions" in result
+
+
+def test_cache_is_scoped_to_model_and_endpoint(tmp_path, monkeypatch):
+    path = str(tmp_path / "cache-model.db")
+    db.init_db(path)
+    calls = []
+    monkeypatch.setattr(ai_module, "BASE_URL", "https://provider-a.invalid/v1")
+    monkeypatch.setattr(ai_module, "DEFAULT_MODEL", "model-a")
+    def fake_call(kind, text):
+        calls.append((ai_module.BASE_URL, ai_module.DEFAULT_MODEL))
+        return "result from " + ai_module.DEFAULT_MODEL
+    monkeypatch.setattr(ai_module, "_call_model", fake_call)
+    assert ai_module.submit_job(path, "summary", LECTURE)[2] == "result from model-a"
+    assert ai_module.submit_job(path, "summary", LECTURE)[2] == "result from model-a"
+    assert len(calls) == 1
+    monkeypatch.setattr(ai_module, "DEFAULT_MODEL", "model-b")
+    assert ai_module.submit_job(path, "summary", LECTURE)[2] == "result from model-b"
+    assert len(calls) == 2
+    monkeypatch.setattr(ai_module, "BASE_URL", "https://provider-b.invalid/v1")
+    ai_module.submit_job(path, "summary", LECTURE)
+    assert len(calls) == 3
