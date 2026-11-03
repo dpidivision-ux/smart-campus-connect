@@ -129,7 +129,7 @@ def submit_job(db_path, kind, source_text):
 
 def ai_stats(db_path):
     """Evidence for the offline-first story: cache hits vs live model calls,
-    and bandwidth saved by condensation."""
+    and text bytes reduced by condensation."""
     with db.connect(db_path) as con:
         rows = [dict(r) for r in con.execute(
             "SELECT model, COUNT(*) AS n FROM ai_jobs WHERE status='done' GROUP BY model")]

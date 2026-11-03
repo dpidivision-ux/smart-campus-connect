@@ -13,7 +13,7 @@
     <form method="post" style="margin-top:14px">
       <input type="hidden" name="action" value="run_allocation">
       <button type="submit">Run allocation for week of {{ week }}</button>
-      <p class="muted" style="margin-top:6px">Splits the pool: guaranteed 120-min floor per student, remainder weighted by exam urgency and documented need. Every student sees the reason for their number.</p>
+      <p class="muted" style="margin-top:6px">Splits the pool: a guaranteed 120-min floor per student when the pool allows, remainder weighted by exam urgency and documented need. Every student sees the reason for their number.</p>
     </form>
   </div>
 
@@ -23,9 +23,9 @@
     </h2>
     <table>
       <tr><th>Live model calls</th><td>{{ stats.live_calls }}</td></tr>
-      <tr><th>Cache hits (no model call, no bandwidth)</th><td>{{ stats.cache_hits }}</td></tr>
+      <tr><th>Cache hits (no model call, no external request)</th><td>{{ stats.cache_hits }}</td></tr>
       <tr><th>Offline fallback served (labeled, not AI)</th><td>{{ stats.fallback_served }}</td></tr>
-      <tr><th>Bandwidth saved by condensation</th><td>{{ (stats.condense_saved_bytes / 1024)|round(1) }} KB</td></tr>
+      <tr><th>Text reduced by condensation</th><td>{{ (stats.condense_saved_bytes / 1024)|round(1) }} KB</td></tr>
     </table>
   </div>
 </div>
