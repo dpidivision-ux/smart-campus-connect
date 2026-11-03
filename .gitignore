@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+campus.db
+shots/
+*.log
+.env

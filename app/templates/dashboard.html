@@ -1,0 +1,71 @@
+{% extends "base.html" %}{% block content %}
+<div class="grid">
+  <div class="card">
+    <h2>Your internet hours - week of {{ week }}</h2>
+    {% if mine %}
+      <div class="big">{{ mine.minutes }} min</div>
+      <div class="muted">allocated to you</div>
+      <div class="bar"><div style="width:{{ [100, (used * 100 / mine.minutes)|round(0,'floor')|int]|min }}%"></div></div>
+      <div class="muted">{{ used }} min used &middot; {{ mine.minutes - used }} min left</div>
+      <p style="margin-top:10px;font-size:13.5px"><strong>Why this amount:</strong> {{ mine.rationale }}</p>
+    {% else %}
+      <p class="muted">No allocation yet this week. Your administrator runs the weekly allocation.</p>
+    {% endif %}
+    {% if user.role == 'student' %}
+    <form method="post" action="{{ url_for('main.log_usage') }}" style="margin-top:14px">
+      <label>Log time you just spent online</label>
+      <div class="row"><input name="minutes" type="number" min="1" max="1440" placeholder="Minutes" required>
+      <input name="note" placeholder="What for? (optional)"></div>
+      <div style="margin-top:10px"><button class="btn small" type="submit">Log usage</button></div>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>AI study tools
+      {% if ai_live %}<span class="pill live">live: {{ ai_model }}</span>
+      {% else %}<span class="pill off">offline mode - requests queue locally</span>{% endif %}
+    </h2>
+    <form method="post" action="{{ url_for('main.ai_submit') }}">
+      <label>Paste lecture notes or a web article</label>
+      <textarea name="source_text" required placeholder="Paste text here. It stays on the campus server."></textarea>
+      <label>What do you need?</label>
+      <div class="row">
+        <select name="kind">
+          <option value="summary">Exam summary (5 bullets)</option>
+          <option value="quiz">Revision quiz (5 questions)</option>
+          <option value="condense">Condense article (save bandwidth)</option>
+        </select>
+        <button type="submit">Generate</button>
+      </div>
+    </form>
+    <p class="muted" style="margin-top:8px">Results are cached: the same text never costs a second model call, and cached results open with no connectivity at all.</p>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Study library <a class="btn small secondary" style="float:right" href="{{ url_for('main.materials') }}">Open library</a></h2>
+  {% if materials %}
+  <table><tr><th>Title</th><th>Type</th><th>By</th></tr>
+  {% for m in materials %}<tr>
+    <td><a href="{{ url_for('main.material_detail', material_id=m.id) }}">{{ m.title }}</a></td>
+    <td>{{ m.kind }}</td><td>{{ m.author }}</td></tr>{% endfor %}
+  </table>
+  {% else %}<p class="muted">Lecturers publish summaries and quizzes here for offline reading.</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2>Recent AI jobs</h2>
+  {% if jobs %}
+  <table><tr><th>#</th><th>Type</th><th>Source</th><th>Preview</th></tr>
+  {% for j in jobs %}<tr>
+    <td><a href="{{ url_for('main.ai_result', job_id=j.id) }}">{{ j.id }}</a></td>
+    <td>{{ j.kind }}</td>
+    <td>{% if j.model == 'cache' %}<span class="pill cache">cache hit - no model call</span>
+        {% elif j.model == 'offline-fallback' %}<span class="pill off">offline fallback (not AI)</span>
+        {% else %}<span class="pill live">{{ j.model }}</span>{% endif %}</td>
+    <td class="muted">{{ j.preview[:90] }}&hellip;</td></tr>{% endfor %}
+  </table>
+  {% else %}<p class="muted">Nothing yet - generate your first summary above.</p>{% endif %}
+</div>
+{% endblock %}

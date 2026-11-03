@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% block content %}
+<div class="card">
+  <h2>{{ job.kind|title }} - job #{{ job.id }}
+    {% if job.model == 'offline-fallback' %}<span class="pill off">offline fallback (not AI)</span>
+    {% elif job.model == 'cache' %}<span class="pill cache">served from cache</span>
+    {% else %}<span class="pill live">{{ job.model }}</span>{% endif %}
+  </h2>
+  {% if job.model == 'offline-fallback' %}
+  <div class="warn">No model endpoint was reachable, so this is a <strong>local extractive fallback, not AI output</strong>. The request stays queued in the database and will upgrade to a real model result when connectivity returns.</div>
+  {% endif %}
+  <div class="result">{{ job.result }}</div>
+  {% if user.role in ('admin','lecturer') and job.status == 'done' %}
+  <form method="post" action="{{ url_for('main.ai_publish', job_id=job.id) }}" style="margin-top:14px">
+    <div class="row"><input name="title" placeholder="Library title (e.g. CSC 101 week 3 summary)">
+    <button class="btn" type="submit">Publish to student library</button></div>
+  </form>
+  {% endif %}
+  <p style="margin-top:14px"><a href="{{ url_for('main.dashboard') }}">&larr; Back to dashboard</a></p>
+</div>
+<div class="card"><h2>Source text</h2><div class="result" style="max-height:220px;overflow:auto">{{ job.source_text }}</div></div>
+{% endblock %}

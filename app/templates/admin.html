@@ -1,0 +1,74 @@
+{% extends "base.html" %}{% block content %}
+<div class="grid">
+  <div class="card">
+    <h2>Weekly pool</h2>
+    <div class="big">{{ pool }} min</div>
+    <div class="muted">total online minutes the campus can offer this week</div>
+    <form method="post" style="margin-top:12px">
+      <input type="hidden" name="action" value="set_pool">
+      <label>Change pool</label>
+      <div class="row"><input name="total_minutes" type="number" min="0" value="{{ pool }}" required>
+      <button class="btn small" type="submit">Save</button></div>
+    </form>
+    <form method="post" style="margin-top:14px">
+      <input type="hidden" name="action" value="run_allocation">
+      <button type="submit">Run allocation for week of {{ week }}</button>
+      <p class="muted" style="margin-top:6px">Splits the pool: guaranteed 120-min floor per student, remainder weighted by exam urgency and documented need. Every student sees the reason for their number.</p>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>AI system status
+      {% if ai_live %}<span class="pill live">live: {{ ai_model }}</span>{% else %}<span class="pill off">offline mode</span>{% endif %}
+    </h2>
+    <table>
+      <tr><th>Live model calls</th><td>{{ stats.live_calls }}</td></tr>
+      <tr><th>Cache hits (no model call, no bandwidth)</th><td>{{ stats.cache_hits }}</td></tr>
+      <tr><th>Offline fallback served (labeled, not AI)</th><td>{{ stats.fallback_served }}</td></tr>
+      <tr><th>Bandwidth saved by condensation</th><td>{{ (stats.condense_saved_bytes / 1024)|round(1) }} KB</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Allocations - week of {{ week }}</h2>
+  {% if allocs %}
+  <table><tr><th>Student</th><th>Minutes</th><th>Used</th><th>Why</th></tr>
+  {% for a in allocs %}<tr>
+    <td>{{ a.full_name }}</td><td><strong>{{ a.minutes }}</strong></td>
+    <td>{% for u in usage %}{% if u.id == a.user_id %}{{ u.used }}{% endif %}{% endfor %}</td>
+    <td class="muted">{{ a.rationale }}</td></tr>{% endfor %}
+  </table>
+  {% else %}<p class="muted">Not run yet this week.</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2>Students</h2>
+  <table><tr><th>Name</th><th>Username</th><th>Exam urgency (0-10)</th><th>Need bonus (0-2)</th><th></th></tr>
+  {% for s in students %}<tr>
+    <td>{{ s.full_name }}</td><td class="muted">{{ s.username }}</td>
+    <td colspan="2">
+      <form method="post" class="row" style="align-items:center">
+        <input type="hidden" name="action" value="update_student">
+        <input type="hidden" name="user_id" value="{{ s.id }}">
+        <input name="exam_urgency" type="number" min="0" max="10" value="{{ s.exam_urgency }}">
+        <input name="need_bonus" type="number" min="0" max="2" step="0.25" value="{{ s.need_bonus }}">
+    </td>
+    <td><button class="btn small secondary" type="submit">Save</button></form></td></tr>{% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h2>Add a student</h2>
+  <form method="post">
+    <input type="hidden" name="action" value="add_student">
+    <div class="row">
+      <div><label>Full name</label><input name="full_name" required></div>
+      <div><label>Username</label><input name="username" required></div>
+      <div><label>Temporary password</label><input name="password" required></div>
+      <div><label>Exam urgency (0-10)</label><input name="exam_urgency" type="number" min="0" max="10" value="0"></div>
+    </div>
+    <div style="margin-top:12px"><button type="submit">Add student</button></div>
+  </form>
+</div>
+{% endblock %}

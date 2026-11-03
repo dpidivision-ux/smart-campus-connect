@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block content %}
+<div class="card">
+  <h2>{{ m.title }} <span class="pill live">{{ m.kind }}</span></h2>
+  <p class="muted">Published by {{ m.author }}{% if m.model %} &middot; {{ m.model }}{% endif %}</p>
+  <div class="result" style="margin-top:12px">{{ m.content }}</div>
+  <p style="margin-top:14px"><a href="{{ url_for('main.materials') }}">&larr; Library</a></p>
+</div>
+{% endblock %}

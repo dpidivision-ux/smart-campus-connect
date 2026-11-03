@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% block content %}
+<div class="login-wrap">
+  <div class="logo"><div class="mark">&#127760;</div>
+    <h1 style="font-size:22px;color:var(--dark)">Smart Campus Connect</h1>
+    <p class="muted">Sign in on the campus network - no internet account needed.</p>
+  </div>
+  <div class="card">
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <form method="post">
+      <label>Username</label><input name="username" required autofocus>
+      <label>Password</label><input name="password" type="password" required>
+      <div style="margin-top:16px"><button type="submit" style="width:100%">Sign in</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}
