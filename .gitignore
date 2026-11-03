@@ -4,3 +4,4 @@ campus.db
 shots/
 *.log
 .env
+demo/DEMO_CREDENTIALS.txt

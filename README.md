@@ -73,8 +73,9 @@ python demo/seed_demo.py        # demo data: 6 students, scarce 3000-min pool
 python run.py                   # http://127.0.0.1:5000
 ```
 
-Demo logins: `admin` / `admin-demo-2026`, student `adaeze` / `adaeze-demo-2026`.
-Run the test suite with `python -m pytest tests/ -q`.
+Demo logins are generated per seed run and printed to `demo/DEMO_CREDENTIALS.txt`
+(gitignored; all demo people are synthetic). Run the test suite with
+`python -m pytest tests/ -q`.
 
 ## What was built during the hackathon
 
