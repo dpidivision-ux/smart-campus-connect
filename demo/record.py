@@ -9,10 +9,13 @@ CARDS = os.path.join(ROOT, "video", "cards")
 VW, VH = 1280, 720
 
 CREDS = {}
-for line in open(os.path.join(ROOT, "demo", "DEMO_CREDENTIALS.txt")):
-    parts = line.split()
-    if len(parts) == 3 and parts[0] in ("admin", "lecturer", "student"):
-        CREDS[parts[1]] = parts[2]
+def load_creds():
+    CREDS.clear()
+    for line in open(os.path.join(ROOT, "demo", "DEMO_CREDENTIALS.txt")):
+        parts = line.split()
+        if len(parts) == 3 and parts[0] in ("admin", "lecturer", "student"):
+            CREDS[parts[1]] = parts[2]
+load_creds()
 
 LECTURE = open(os.path.join(ROOT, "demo", "lecture_csc101.txt")).read()
 
@@ -59,8 +62,9 @@ def main():
     db = os.path.join(ROOT, "campus.db")
     if os.path.exists(db):
         os.remove(db)
-    subprocess.run([sys.executable, "seed.py"], cwd=ROOT, check=True,
+    subprocess.run([sys.executable, os.path.join(ROOT, "demo", "seed_demo.py")], cwd=ROOT, check=True,
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    load_creds()  # seed regenerates random demo passwords per run
     srv = subprocess.Popen([sys.executable, "run.py"], cwd=ROOT,
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(2.5)

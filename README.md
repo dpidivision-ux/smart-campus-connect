@@ -48,7 +48,7 @@ takes over automatically.
 ## Run it
 
     pip install -r requirements.txt
-    python seed.py          # creates the demo database (synthetic people)
+    python demo/seed_demo.py  # creates the demo database (synthetic people)
     python app.py           # http://localhost:5000
 
 Demo credentials are generated randomly per seed run and printed to
