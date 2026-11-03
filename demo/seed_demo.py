@@ -32,7 +32,7 @@ def seed(path):
             pass  # already seeded
 
     mk("admin", "admin", "Portal Administrator")
-    mk("lecturer", "lecturer", "A. Razgour")
+    mk("lecturer", "lecturer", "Demo Lecturer (synthetic)")
     for uname, name, urgency in STUDENTS:
         mk(uname, "student", name, urgency)
 

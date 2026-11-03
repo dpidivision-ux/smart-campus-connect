@@ -1,0 +1,11 @@
+CSC 101 - Introduction to Computer Science, Week 3 Lecture Notes (synthetic demo lecturer)
+
+An algorithm is a finite sequence of well-defined instructions for solving a problem. Every algorithm must terminate after a finite number of steps and produce a correct output for every valid input.
+
+We measure algorithm efficiency using time complexity and space complexity. Big-O notation describes the upper bound of growth as input size increases. A linear search through a list of n students takes O(n) time, because each element may be checked once. Binary search, which requires a sorted list, halves the search space each step and takes O(log n) time. For a register of 65,000 students, linear search may need 65,000 comparisons while binary search needs at most 17.
+
+Sorting arranges records so searching and reporting become cheap. Bubble sort compares adjacent elements and swaps them; it is simple but takes O(n^2) time. Merge sort divides the list recursively and merges sorted halves in O(n log n) time. Choosing the right algorithm matters when the campus server is old and slow.
+
+Data structures organize information. Arrays give constant-time access by index but fixed size. Linked lists grow dynamically but need sequential access. A stack processes items last-in-first-out, like a pile of answer sheets. A queue processes first-in-first-out, like students waiting at the cybercafe.
+
+On Monday we will apply these ideas: given the list of students and their internet-hour allocations, we will sort by allocation and answer questions such as which students fall below the guaranteed floor.
