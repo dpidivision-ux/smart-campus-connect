@@ -23,7 +23,7 @@
 
   <div class="card">
     <h2>AI system status
-      {% if ai_live %}<span class="pill live">live: {{ ai_model }}</span>{% else %}<span class="pill off">offline mode</span>{% endif %}
+      {% if ai_live %}<span class="pill live">configured: {{ ai_model }}</span>{% else %}<span class="pill off">offline mode</span>{% endif %}
     </h2>
     <table>
       <tr><th>Live model calls recorded</th><td>{{ stats.live_calls }}</td></tr>
