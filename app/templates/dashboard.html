@@ -24,7 +24,7 @@
   <div class="card">
     <h2>AI study tools
       {% if ai_live %}<span class="pill live">live: {{ ai_model }}</span>
-      {% else %}<span class="pill off">offline mode - requests queue locally</span>{% endif %}
+      {% else %}<span class="pill off">offline mode - jobs logged locally</span>{% endif %}
     </h2>
     <form method="post" action="{{ url_for('main.ai_submit') }}">
       <label>Paste lecture notes or a web article</label>

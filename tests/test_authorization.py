@@ -69,3 +69,16 @@ def test_fallback_label_is_kind_aware(tmp_path):
     assert "extractive summary" not in quiz
     _, _, summary = ai_module.submit_job(path, "summary", "Some lecture text. " * 40)
     assert "extractive summary" in summary
+
+
+def test_fallback_job_completes_and_copy_is_honest(tmp_path):
+    # Regression: fallback jobs finish immediately - UI must not claim they
+    # "stay queued" or "upgrade" automatically.
+    app, path = _app(tmp_path)
+    c = app.test_client()
+    _login(c, "lec", "pw-lect")
+    job_id, status, _ = ai_module.submit_job(path, "summary", "Some text. " * 30)
+    assert status == "done"
+    html = c.get(f"/ai/{job_id}").get_data(as_text=True)
+    assert "not AI output" in html
+    assert "stays queued" not in html and "will upgrade" not in html

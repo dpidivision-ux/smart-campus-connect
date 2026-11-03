@@ -6,7 +6,7 @@
     {% else %}<span class="pill live">{{ job.model }}</span>{% endif %}
   </h2>
   {% if job.model == 'offline-fallback' %}
-  <div class="warn">No model endpoint was reachable, so this is a <strong>local extractive fallback, not AI output</strong>. The request stays queued in the database and will upgrade to a real model result when connectivity returns.</div>
+  <div class="warn">No model endpoint was reachable, so this is a <strong>local extractive fallback, not AI output</strong>. The request is stored in the local job log; submit the same text again once a model endpoint is reachable and the model will be called once, then cached.</div>
   {% endif %}
   <div class="result">{{ job.result }}</div>
   {% if user.role in ('admin','lecturer') and job.status == 'done' %}

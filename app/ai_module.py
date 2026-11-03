@@ -23,7 +23,7 @@ import requests
 
 from . import db
 
-DEFAULT_MODEL = os.environ.get("AI_MODEL", "meta-models/muse-spark-open-1026")
+DEFAULT_MODEL = os.environ.get("AI_MODEL", "muse-spark-open")
 DEMO_LECTURE_PATH = os.environ.get(
     "DEMO_LECTURE_PATH",
     os.path.join(os.path.dirname(__file__), "..", "demo", "lecture_csc101.txt"))

@@ -16,9 +16,9 @@ expensive and students get limited online hours.
 2. **Usage logging.** Students log sessions against their allocation and
    always see what remains.
 3. **AI study tools built for unreliable connectivity.** Exam summaries,
-   revision quizzes, and web-article condensation. Requests queue locally;
-   results are cached on the campus server, so repeats cost no new model
-   call. Lecturers publish results to a library students can open over the
+   revision quizzes, and web-article condensation. Every request is
+   recorded in the local job log; results are cached on the campus
+   server, so repeats cost no new model call. Lecturers publish results to a library students can open over the
    campus network with no internet. When no model endpoint is reachable, a
    clearly-labeled non-AI extractive fallback keeps the tools usable - it
    is never presented as model output, and its quiz mode serves extracted
