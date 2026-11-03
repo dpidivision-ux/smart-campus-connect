@@ -1,7 +1,7 @@
 """Role-based authentication (student / lecturer / admin).
 
 Passwords are salted PBKDF2-HMAC-SHA256 hashes; sessions are Flask
-server-side signed cookies. No third-party auth dependency - the system
+signed client-side cookies. No third-party auth dependency - the system
 must run on an isolated campus network.
 """
 import hashlib

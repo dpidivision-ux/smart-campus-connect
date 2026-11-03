@@ -49,7 +49,7 @@ def seed(path):
 
     # Publish two synthetic CSC101-W3 study materials through the same AI
     # pipeline the UI uses (offline fallback until a model endpoint is
-    # configured - content is labeled accordingly), then record a few
+    # configured. Seeding never calls an external provider), then record a few
     # library reads so the measured-impact panel has real demo counts.
     from app import ai_module
     with db.connect(path) as con:
@@ -59,12 +59,12 @@ def seed(path):
     if not db.list_materials(path):
         lecture = open(os.path.join(os.path.dirname(__file__), "lecture_csc101.txt"),
                        encoding="utf-8").read()
-        jid1, _, _ = ai_module.submit_job(path, "summary", lecture)
+        jid1, _, _ = ai_module.submit_job(path, "summary", lecture, allow_model=False)
         job1 = ai_module.get_job(path, jid1)
         mid1 = db.add_material(path, "CSC101-W3 lecture summary (synthetic)",
                                "summary", job1["result"], job1["model"], lecturer,
                                course_tag="CSC101-W3")
-        jid2, _, _ = ai_module.submit_job(path, "quiz", lecture)
+        jid2, _, _ = ai_module.submit_job(path, "quiz", lecture, allow_model=False)
         job2 = ai_module.get_job(path, jid2)
         mid2 = db.add_material(path, "CSC101-W3 revision quiz (synthetic)",
                                "quiz", job2["result"], job2["model"], lecturer,

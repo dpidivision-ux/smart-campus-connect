@@ -79,3 +79,28 @@ required for the core system.
 ## License
 
 MIT
+
+
+## Prototype limits and demo artifacts
+
+This is a prototype, not a deployed campus service. Usage is self-reported;
+it does not enforce router access or measure real network traffic. Queued AI
+jobs need an explicit retry; there is no background worker. Cached materials
+can be read without external internet, but fresh model generation needs the
+configured provider. Muse access and local Muse inference remain untested.
+
+The admin panel never initiates a model call. Its quality comparison uses a
+recorded successful summary for the same synthetic lecture and model. Text
+sizes count UTF-8 bytes, not full network transfer. These synthetic counts
+are not evidence of real campus impact or model accuracy.
+
+`run.py` starts a loopback-only development server. Network deployment needs
+a production server, HTTPS and a persistent random `SCC_SECRET`. Without that
+environment setting, the local prototype creates a fresh random signing key
+at startup, so sessions reset on restart.
+
+Files already under `video/out/`, `video/segs/` and `video/check/` are historical
+work-in-progress artifacts, not the final submission video. The old
+`video/out/smart-campus-connect-demo.mp4` is incomplete and shows an earlier
+offline-fallback build. Do not treat it as a Muse demo. No final video URL is
+available yet. Final video publication requires the owner's review.

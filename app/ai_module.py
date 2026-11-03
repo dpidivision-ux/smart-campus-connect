@@ -122,7 +122,7 @@ def _complete_with_model(db_path, job_id, key, kind, source_text):
     return True
 
 
-def submit_job(db_path, kind, source_text):
+def submit_job(db_path, kind, source_text, allow_model=True):
     """Create a durable job; returns (job_id, status, result_or_none).
 
     Semantics: a successful model result (or its cache hit) completes the
@@ -146,7 +146,7 @@ def submit_job(db_path, kind, source_text):
              "offline-fallback", db.now()))
         job_id = cur.lastrowid
 
-    if endpoint_configured() and _complete_with_model(db_path, job_id, key, kind, source_text):
+    if allow_model and endpoint_configured() and _complete_with_model(db_path, job_id, key, kind, source_text):
         return job_id, "done", get_job(db_path, job_id)["result"]
     return job_id, "queued", get_job(db_path, job_id)["result"]
 
@@ -192,25 +192,26 @@ def concept_coverage(text):
     return found, missing
 
 
-def quality_check():
-    """Same-source comparison with an explicit rubric: the deterministic
-    offline fallback vs the configured model (when reachable). Returns None
-    on the model side when no live call has succeeded - never substituted
-    by a second fallback pass."""
+def quality_check(db_path=None):
+    """Compare fallback with a recorded same-source successful summary.
+    Never initiates model usage. Returns None without a matching result."""
     source = open(DEMO_LECTURE_PATH, encoding="utf-8").read()
     fb_found, fb_missing = concept_coverage(_extractive_fallback(source, max_sentences=8))
     result = {"source": "CSC101-W3 synthetic lecture notes",
               "rubric": CSC101_W3_KEY_CONCEPTS,
               "fallback": {"found": fb_found, "missing": fb_missing},
               "model": None}
-    if endpoint_configured():
-        try:
-            out = _call_model("summary", source)
-            m_found, m_missing = concept_coverage(out)
-            result["model"] = {"name": DEFAULT_MODEL, "found": m_found,
-                               "missing": m_missing, "output": out}
-        except Exception:
-            result["model"] = None
+    # Reading the admin panel never calls a provider. Compare only a recorded
+    # successful result for this exact synthetic source and configured model.
+    if db_path:
+        with db.connect(db_path) as con:
+            row = con.execute(
+                "SELECT result, model FROM ai_cache WHERE cache_key=?",
+                (_cache_key("summary", source),)).fetchone()
+        if row:
+            m_found, m_missing = concept_coverage(row["result"])
+            result["model"] = {"name": row["model"], "found": m_found,
+                               "missing": m_missing, "output": row["result"]}
     return result
 
 
@@ -225,16 +226,16 @@ def ai_stats(db_path):
     comparison scenario."""
     with db.connect(db_path) as con:
         rows = [dict(r) for r in con.execute(
-            "SELECT model, COUNT(*) AS n FROM ai_jobs WHERE status='done' GROUP BY model")]
+            "SELECT model, COUNT(*) AS n FROM ai_jobs GROUP BY model")]
         condense = con.execute(
             "SELECT source_text, result FROM ai_jobs WHERE kind='condense' AND status='done'"
             " AND model != 'offline-fallback'").fetchall()
         totals = con.execute(
-            "SELECT COALESCE(SUM(LENGTH(source_text)),0) AS src,"
-            " COALESCE(SUM(LENGTH(result)),0) AS out_ FROM ai_jobs WHERE status='done'"
+            "SELECT COALESCE(SUM(LENGTH(CAST(source_text AS BLOB))),0) AS src,"
+            " COALESCE(SUM(LENGTH(CAST(result AS BLOB))),0) AS out_ FROM ai_jobs"
         ).fetchone()
     by_model = { (r["model"] or "unknown"): r["n"] for r in rows }
-    saved_bytes = sum(max(0, len(r["source_text"]) - len(r["result"] or "")) for r in condense)
+    saved_bytes = sum(max(0, len(r["source_text"].encode("utf-8")) - len((r["result"] or "").encode("utf-8"))) for r in condense)
     reads = db.material_read_stats(db_path)
     # Comparison scenario (explicit): without the on-campus library, every
     # library read would have downloaded the full material text once over

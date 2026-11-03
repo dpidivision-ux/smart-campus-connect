@@ -26,7 +26,7 @@
       {% if ai_live %}<span class="pill live">configured: {{ ai_model }}</span>{% else %}<span class="pill off">offline mode</span>{% endif %}
     </h2>
     <table>
-      <tr><th>Live model calls recorded</th><td>{{ stats.live_calls }}</td></tr>
+      <tr><th>Successful model jobs recorded</th><td>{{ stats.live_calls }}</td></tr>
       <tr><th>Cache hits (no model call, no external request)</th><td>{{ stats.cache_hits }}</td></tr>
       <tr><th>Jobs pending a model call (serving labeled offline previews)</th><td>{{ stats.pending_model }}</td></tr>
       <tr><th>Text reduced by condensation</th><td>{{ (stats.condense_saved_bytes / 1024)|round(1) }} KB <span class="muted">(source text bytes minus output text bytes)</span></td></tr>
@@ -41,7 +41,7 @@
     <tr><th>Distinct readers</th><td>{{ stats.distinct_readers }}</td></tr>
     <tr><th>Text bytes read from the local library</th><td>{{ (stats.read_text_bytes / 1024)|round(1) }} KB</td></tr>
     <tr><th>Source text submitted to AI jobs (includes offline-fallback jobs)</th><td>{{ (stats.source_text_bytes / 1024)|round(1) }} KB</td></tr>
-    <tr><th>Output text served (includes labeled fallback output)</th><td>{{ (stats.output_text_bytes / 1024)|round(1) }} KB</td></tr>
+    <tr><th>Stored output text (includes labeled fallback previews)</th><td>{{ (stats.output_text_bytes / 1024)|round(1) }} KB</td></tr>
   </table>
   <p class="muted" style="margin-top:10px"><strong>Estimate, not a measurement:</strong>
   {{ (stats.estimated_avoided_fetch_bytes / 1024)|round(1) }} KB of downloads would have occurred
@@ -62,8 +62,8 @@
       <td class="muted">{{ quality.fallback.missing|join(', ') or 'none' }}</td>
     </tr>
     <tr>
-      <td>{% if quality.model %}Live model: {{ quality.model.name }}{% else %}Live model{% endif %}</td>
-      <td>{% if quality.model %}{{ quality.model.found|length }} / {{ quality.rubric|length }}{% else %}pending - no live model call has succeeded yet{% endif %}</td>
+      <td>{% if quality.model %}Recorded model: {{ quality.model.name }}{% else %}Recorded model{% endif %}</td>
+      <td>{% if quality.model %}{{ quality.model.found|length }} / {{ quality.rubric|length }}{% else %}pending - no matching recorded summary{% endif %}</td>
       <td class="muted">{% if quality.model %}{{ quality.model.missing|join(', ') or 'none' }}{% else %}-{% endif %}</td>
     </tr>
   </table>

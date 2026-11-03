@@ -170,7 +170,7 @@ def material_read_stats(path):
             "SELECT COUNT(*) AS reads, COUNT(DISTINCT user_id) AS readers FROM material_reads"
         ).fetchone()
         b = con.execute(
-            "SELECT COALESCE(SUM(LENGTH(m.content)),0) AS bytes FROM material_reads rd"
+            "SELECT COALESCE(SUM(LENGTH(CAST(m.content AS BLOB))),0) AS bytes FROM material_reads rd"
             " JOIN materials m ON m.id = rd.material_id").fetchone()
     return {"library_reads": r["reads"], "distinct_readers": r["readers"],
             "read_text_bytes": b["bytes"]}

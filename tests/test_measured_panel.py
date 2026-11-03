@@ -61,3 +61,68 @@ def test_targeted_materials_prefix_match(tmp_path):
     assert got == {"W3", "W4"}
     assert {m["title"] for m in db.list_materials_for_targets(path, "PHY102")} == {"PHY"}
     assert db.list_materials_for_targets(path, "") == []
+
+
+def test_utf8_bytes_and_queued_fallback_are_counted(tmp_path, monkeypatch):
+    path, lec, s1, _ = _fresh(tmp_path)
+    text = "שלום עולם. This sentence has enough useful words for extraction."
+    monkeypatch.setattr(ai_module, "BASE_URL", "")
+    jid, status, preview = ai_module.submit_job(path, "summary", text)
+    assert status == "queued"
+    st = ai_module.ai_stats(path)
+    assert st["fallback_served"] == 1
+    assert st["source_text_bytes"] == len(text.encode("utf-8"))
+    assert st["output_text_bytes"] == len(preview.encode("utf-8"))
+    mid = db.add_material(path, "Unicode", "summary", text, "demo", lec)
+    db.log_material_read(path, mid, s1)
+    assert db.material_read_stats(path)["read_text_bytes"] == len(text.encode("utf-8"))
+
+
+def test_quality_panel_never_calls_provider(tmp_path, monkeypatch):
+    path, *_ = _fresh(tmp_path)
+    monkeypatch.setattr(ai_module, "BASE_URL", "https://not-called.invalid")
+    calls = []
+    def forbidden(*args):
+        calls.append(args)
+        raise AssertionError("Admin quality panel must never call provider")
+    monkeypatch.setattr(ai_module, "_call_model", forbidden)
+    assert ai_module.quality_check(path)["model"] is None
+    source = open(ai_module.DEMO_LECTURE_PATH, encoding="utf-8").read()
+    with db.connect(path) as con:
+        con.execute("INSERT INTO ai_cache (cache_key,kind,result,model,created_at) VALUES (?,?,?,?,?)",
+                    (ai_module._cache_key("summary",source),"summary","Binary search uses O(log n).",ai_module.DEFAULT_MODEL,db.now()))
+    assert "binary search" in ai_module.quality_check(path)["model"]["found"]
+    assert calls == []
+
+
+def test_seed_explicitly_avoids_model(tmp_path, monkeypatch):
+    monkeypatch.setattr(ai_module, "BASE_URL", "https://not-called.invalid")
+    calls = []
+    def forbidden(*args):
+        calls.append(args)
+        raise AssertionError("Seeding must not call provider")
+    monkeypatch.setattr(ai_module, "_call_model", forbidden)
+    # Test submit policy without writing the real demo credential file.
+    path, *_ = _fresh(tmp_path)
+    assert ai_module.submit_job(path, "summary", "Demo sample.", allow_model=False)[1] == "queued"
+    assert calls == []
+
+
+def test_admin_get_never_calls_provider(tmp_path, monkeypatch):
+    from app import create_app
+    import re
+    path, *_ = _fresh(tmp_path)
+    auth.create_user(path, "a", "p", "admin", "Admin")
+    monkeypatch.setattr(ai_module, "BASE_URL", "https://not-called.invalid")
+    calls = []
+    def forbidden(*args):
+        calls.append(args)
+        raise AssertionError("Admin GET must not call provider")
+    monkeypatch.setattr(ai_module, "_call_model", forbidden)
+    app = create_app(path); app.config["TESTING"] = True
+    c = app.test_client()
+    token = re.search(r'name="csrf" value="([^"]+)"', c.get("/login").get_data(as_text=True)).group(1)
+    c.post("/login", data={"username":"a","password":"p","csrf":token})
+    assert c.get("/admin").status_code == 200
+    assert ai_module.ai_stats(path)["live_calls"] == 0
+    assert calls == []

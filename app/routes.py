@@ -151,7 +151,7 @@ def admin(user):
                            students=students, allocs=allocs, week=week,
                            usage=db.usage_overview(db_path, week),
                            stats=ai_module.ai_stats(db_path),
-                           quality=ai_module.quality_check(),
+                           quality=ai_module.quality_check(db_path),
                            ai_live=ai_module.endpoint_configured(),
                            ai_model=ai_module.DEFAULT_MODEL)
 
