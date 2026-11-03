@@ -39,13 +39,14 @@ expensive and students get limited online hours.
 
 ## AI integration
 
-The AI module calls Meta's open-weight models through an
-OpenAI-compatible chat-completions endpoint. One configuration switch
-points the same code at:
+The AI module uses an OpenAI-compatible chat-completions endpoint.
+The prototype has been tested with Meta Llama 3.3 70B through Cloudflare
+Workers AI. Qualifying Muse model access is still pending; no successful
+Muse call or local Muse deployment is claimed.
 
-- the **Meta Model API** (Muse Spark series),
-- a hackathon inference partner hosting **Muse Spark Open** (e.g. Baseten),
-- **Muse Glimmer** running locally on a campus PC (llama.cpp / LM Studio).
+Endpoint URL, model ID and API key are configurable. Each provider and
+model must be tested before claiming compatibility. Cache entries are
+scoped by endpoint and model, so changing either requires fresh generation.
 
 Configure with environment variables:
 
@@ -60,7 +61,7 @@ takes over automatically.
 
     pip install -r requirements.txt
     python demo/seed_demo.py  # creates the demo database (synthetic people)
-    python app.py           # http://localhost:5000
+    python run.py           # http://localhost:5000
 
 Demo credentials are generated randomly per seed run and printed to
 `demo/DEMO_CREDENTIALS.txt` (gitignored). All demo people and data are
