@@ -24,7 +24,7 @@
 
   <div class="card">
     <h2>AI study tools
-      {% if ai_live %}<span class="pill live">live: {{ ai_model }}</span>
+      {% if ai_live %}<span class="pill live">configured: {{ ai_model }}</span>
       {% else %}<span class="pill off">offline mode - jobs wait as durable pending requests</span>{% endif %}
     </h2>
     <form method="post" action="{{ url_for('main.ai_submit') }}">
@@ -41,7 +41,7 @@
         <button type="submit">Generate</button>
       </div>
     </form>
-    <p class="muted" style="margin-top:8px">Results are cached: the same text never costs a second model call, and cached results open over the campus network with no internet.</p>
+    <p class="muted" style="margin-top:8px">Successful results are cached for the same task, text, endpoint and model. Cached results open over the campus network without another external request.</p>
   </div>
 </div>
 
