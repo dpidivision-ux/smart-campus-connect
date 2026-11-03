@@ -23,10 +23,12 @@ def test_offline_fallback_queues_and_labels(tmp_path=None):
     path = _fresh_db()
     # no endpoint configured in test env -> fallback path
     job_id, status, result = ai_module.submit_job(path, "summary", LECTURE)
-    assert status == "done"
-    assert "OFFLINE FALLBACK" in result
+    assert status == "queued"
+    assert "OFFLINE PREVIEW - NOT AI OUTPUT" in result
     job = ai_module.get_job(path, job_id)
     assert job["model"] == "offline-fallback"
+    # preview is never cached: a second identical request must not hit cache
+    assert ai_module.ai_stats(path)["cache_hits"] == 0
 
 
 def test_fallback_picks_content_sentences():
@@ -37,4 +39,5 @@ def test_fallback_picks_content_sentences():
 def test_quiz_prompt_shape():
     path = _fresh_db()
     job_id, status, result = ai_module.submit_job(path, "quiz", LECTURE)
-    assert status == "done" and result
+    assert status == "queued" and result
+    assert "NOT generated quiz questions" in result

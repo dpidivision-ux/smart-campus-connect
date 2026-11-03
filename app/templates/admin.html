@@ -6,12 +6,14 @@
     <div class="big">{{ pool }} min</div>
     <div class="muted">total online minutes the campus can offer this week</div>
     <form method="post" style="margin-top:12px">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
       <input type="hidden" name="action" value="set_pool">
       <label>Change pool</label>
       <div class="row"><input name="total_minutes" type="number" min="0" value="{{ pool }}" required>
       <button class="btn small" type="submit">Save</button></div>
     </form>
     <form method="post" style="margin-top:14px">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
       <input type="hidden" name="action" value="run_allocation">
       <button type="submit">Run allocation for week of {{ week }}</button>
       <p class="muted" style="margin-top:6px">Splits the pool: a guaranteed 120-min floor per student when the pool allows, remainder weighted by exam urgency and documented need. Every student sees the reason for their number.</p>
@@ -26,7 +28,7 @@
     <table>
       <tr><th>Live model calls recorded</th><td>{{ stats.live_calls }}</td></tr>
       <tr><th>Cache hits (no model call, no external request)</th><td>{{ stats.cache_hits }}</td></tr>
-      <tr><th>Offline fallback served (labeled, not AI)</th><td>{{ stats.fallback_served }}</td></tr>
+      <tr><th>Jobs pending a model call (serving labeled offline previews)</th><td>{{ stats.pending_model }}</td></tr>
       <tr><th>Text reduced by condensation</th><td>{{ (stats.condense_saved_bytes / 1024)|round(1) }} KB <span class="muted">(source text bytes minus output text bytes)</span></td></tr>
     </table>
   </div>
@@ -87,6 +89,7 @@
     <td>{{ s.full_name }}</td><td class="muted">{{ s.username }}</td>
     <td colspan="3">
       <form method="post" class="row" style="align-items:center">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
         <input type="hidden" name="action" value="update_student">
         <input type="hidden" name="user_id" value="{{ s.id }}">
         <input name="exam_urgency" type="number" min="0" max="10" value="{{ s.exam_urgency }}">
@@ -100,6 +103,7 @@
 <div class="card">
   <h2>Add a student</h2>
   <form method="post">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
     <input type="hidden" name="action" value="add_student">
     <div class="row">
       <div><label>Full name</label><input name="full_name" required></div>

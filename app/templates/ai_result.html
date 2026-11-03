@@ -1,16 +1,24 @@
 {% extends "base.html" %}{% block content %}
 <div class="card">
   <h2>{{ job.kind|title }} - job #{{ job.id }}
-    {% if job.model == 'offline-fallback' %}<span class="pill off">offline fallback (not AI)</span>
+    {% if job.status == 'queued' %}<span class="pill off">pending a model call - preview only</span>
     {% elif job.model == 'cache' %}<span class="pill cache">served from cache</span>
     {% else %}<span class="pill live">{{ job.model }}</span>{% endif %}
   </h2>
-  {% if job.model == 'offline-fallback' %}
-  <div class="warn">No model endpoint was reachable, so this is a <strong>local extractive fallback, not AI output</strong>. The request is stored in the local job log; submit the same text again once a model endpoint is reachable and the model will be called once, then cached.</div>
+  {% if job.status == 'queued' %}
+  <div class="warn">No model call has succeeded for this request, so what you see below is a
+  <strong>local extractive preview, not AI output</strong>. The job is stored durably and stays
+  pending. When a model endpoint is reachable, use Retry: one explicit click makes one model
+  attempt; a success replaces this preview everywhere and is cached. Model attempts so far: {{ job.attempts }}.</div>
+  <form method="post" action="{{ url_for('main.ai_retry', job_id=job.id) }}" style="margin:10px 0">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <button class="btn small" type="submit">Retry model now</button>
+  </form>
   {% endif %}
   <div class="result">{{ job.result }}</div>
-  {% if user.role in ('admin','lecturer') and job.status == 'done' %}
+  {% if user.role in ('admin','lecturer') and job.result %}
   <form method="post" action="{{ url_for('main.ai_publish', job_id=job.id) }}" style="margin-top:14px">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
     <div class="row"><input name="title" placeholder="Library title (e.g. CSC 101 week 3 summary)">
     <input name="course_tag" placeholder="Course/exam ID (e.g. CSC101-W3)" style="max-width:230px">
     <button class="btn" type="submit">Publish to student library</button></div>

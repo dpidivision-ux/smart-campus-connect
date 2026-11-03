@@ -92,8 +92,43 @@ def _extractive_fallback(text, max_sentences=5):
     return "\n".join("- " + s.strip() for _, _, s in picked) or "- (no content)"
 
 
+FALLBACK_HEADERS = {
+    "summary": ("OFFLINE PREVIEW - NOT AI OUTPUT (no model call has succeeded yet; "
+                "this extractive summary is generated locally without AI):"),
+    "condense": ("OFFLINE PREVIEW - NOT AI OUTPUT (no model call has succeeded yet; "
+                 "this extractive condensation is generated locally without AI):"),
+    "quiz": ("OFFLINE PREVIEW - NOT AI OUTPUT (no model call has succeeded yet; these "
+             "key sentences are extracted locally without AI for self-testing - they "
+             "are NOT generated quiz questions):"),
+}
+
+
+def _complete_with_model(db_path, job_id, key, kind, source_text):
+    """One real model attempt. On success the job is done and ONLY the model
+    result enters the cache. On failure the job stays queued - the caller
+    decides when to retry; nothing upgrades silently."""
+    try:
+        result = _call_model(kind, source_text)
+    except Exception:
+        with db.connect(db_path) as con:
+            con.execute("UPDATE ai_jobs SET attempts=attempts+1 WHERE id=?", (job_id,))
+        return False
+    with db.connect(db_path) as con:
+        con.execute("UPDATE ai_jobs SET status='done', result=?, model=?, attempts=attempts+1,"
+                    " finished_at=? WHERE id=?",
+                    (result, DEFAULT_MODEL, db.now(), job_id))
+        con.execute("INSERT OR REPLACE INTO ai_cache (cache_key, kind, result, model, created_at)"
+                    " VALUES (?,?,?,?,?)", (key, kind, result, DEFAULT_MODEL, db.now()))
+    return True
+
+
 def submit_job(db_path, kind, source_text):
-    """Queue a summary/quiz job; returns (job_id, status, result_or_none)."""
+    """Create a durable job; returns (job_id, status, result_or_none).
+
+    Semantics: a successful model result (or its cache hit) completes the
+    job. Without one the job STAYS QUEUED with a clearly-labeled extractive
+    preview in its result field - a preview is never cached and never
+    completes the job. retry_job() makes an explicit new attempt."""
     key = _cache_key(kind, source_text)
     with db.connect(db_path) as con:
         hit = con.execute("SELECT result FROM ai_cache WHERE cache_key = ?", (key,)).fetchone()
@@ -104,40 +139,30 @@ def submit_job(db_path, kind, source_text):
                 (kind, source_text, "done", hit["result"], "cache", db.now(), db.now()))
             return cur.lastrowid, "done", hit["result"]
         cur = con.execute(
-            "INSERT INTO ai_jobs (kind, source_text, status, created_at) VALUES (?,?,?,?)",
-            (kind, source_text, "queued", db.now()))
+            "INSERT INTO ai_jobs (kind, source_text, status, result, model, created_at)"
+            " VALUES (?,?,?,?,?,?)",
+            (kind, source_text, "queued",
+             FALLBACK_HEADERS[kind] + "\n" + _extractive_fallback(source_text),
+             "offline-fallback", db.now()))
         job_id = cur.lastrowid
 
-    result, model = None, None
-    if endpoint_configured():
-        try:
-            result = _call_model(kind, source_text)
-            model = DEFAULT_MODEL
-        except Exception:
-            result = None
-    if result is None:
-        # Offline or endpoint failure: deterministic fallback, clearly labeled
-        # per task type - the quiz fallback is an excerpt for self-testing,
-        # never implied to be generated questions.
-        headers = {
-            "summary": ("OFFLINE FALLBACK (no model call succeeded yet; this extractive "
-                        "summary is generated locally without AI):"),
-            "condense": ("OFFLINE FALLBACK (no model call succeeded yet; this extractive "
-                         "condensation is generated locally without AI):"),
-            "quiz": ("OFFLINE FALLBACK (no model call succeeded yet; these key sentences are "
-                     "extracted locally without AI for self-testing - they are NOT generated "
-                     "quiz questions):"),
-        }
-        result = headers[kind] + "\n" + _extractive_fallback(source_text)
-        model = "offline-fallback"
+    if endpoint_configured() and _complete_with_model(db_path, job_id, key, kind, source_text):
+        return job_id, "done", get_job(db_path, job_id)["result"]
+    return job_id, "queued", get_job(db_path, job_id)["result"]
 
-    with db.connect(db_path) as con:
-        con.execute("UPDATE ai_jobs SET status='done', result=?, model=?, finished_at=? WHERE id=?",
-                    (result, model, db.now(), job_id))
-        if model != "offline-fallback":
-            con.execute("INSERT OR REPLACE INTO ai_cache (cache_key, kind, result, model, created_at)"
-                        " VALUES (?,?,?,?,?)", (key, kind, result, model, db.now()))
-    return job_id, "done", result
+
+def retry_job(db_path, job_id):
+    """Explicit model retry for a queued job. Returns the new status
+    ('done' on success, 'queued' otherwise). No-op on finished jobs."""
+    job = get_job(db_path, job_id)
+    if not job or job["status"] == "done":
+        return job["status"] if job else None
+    if not endpoint_configured():
+        return "queued"
+    key = _cache_key(job["kind"], job["source_text"])
+    if _complete_with_model(db_path, job_id, key, job["kind"], job["source_text"]):
+        return "done"
+    return "queued"
 
 
 # Explicit key-concept rubric for the synthetic CSC101 Week 3 demo lecture
@@ -189,6 +214,11 @@ def quality_check():
     return result
 
 
+def _count_pending(db_path):
+    with db.connect(db_path) as con:
+        return con.execute("SELECT COUNT(*) c FROM ai_jobs WHERE status='queued'").fetchone()["c"]
+
+
 def ai_stats(db_path):
     """Measured evidence for the offline-first story. Everything here is
     counted from this demo database; the one estimate is labeled with its
@@ -216,6 +246,7 @@ def ai_stats(db_path):
             "live_calls": sum(n for m, n in by_model.items()
                               if m not in ("cache", "offline-fallback", "unknown")),
             "fallback_served": by_model.get("offline-fallback", 0),
+            "pending_model": _count_pending(db_path),
             "condense_saved_bytes": saved_bytes,
             "source_text_bytes": totals["src"],
             "output_text_bytes": totals["out_"],

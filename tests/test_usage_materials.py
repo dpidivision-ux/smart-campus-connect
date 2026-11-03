@@ -35,11 +35,11 @@ def test_condense_kind_and_stats():
     path = _fresh_db()
     article = "The university senate met on Tuesday. " * 30
     job_id, status, result = ai_module.submit_job(path, "condense", article)
-    assert status == "done"
+    assert status == "queued"
     stats = ai_module.ai_stats(path)
-    # offline in tests: counted as fallback, live_calls zero
+    # offline in tests: job pends a model call; nothing counted as live
     assert stats["live_calls"] == 0
-    assert stats["fallback_served"] >= 1
+    assert stats["pending_model"] >= 1
 
 
 def test_cache_hit_skips_model():

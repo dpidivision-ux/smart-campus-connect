@@ -10,6 +10,17 @@ from . import ai_module, allocation, auth, db
 bp = Blueprint("main", __name__)
 
 
+@bp.app_context_processor
+def inject_csrf():
+    return {"csrf_token": auth.csrf_token()}
+
+
+@bp.before_app_request
+def csrf_protect():
+    if request.method == "POST" and not auth.csrf_valid():
+        abort(400, description="Missing or invalid CSRF token")
+
+
 def login_required(*roles):
     def deco(fn):
         @functools.wraps(fn)
@@ -44,9 +55,13 @@ def index():
 def login():
     error = None
     if request.method == "POST":
-        if auth.authenticate(_db(), request.form["username"].strip(), request.form["password"]):
+        uname = request.form["username"].strip()
+        if auth.is_locked(_db(), uname):
+            error = "Too many failed attempts - this account is locked for a few minutes"
+        elif auth.authenticate(_db(), uname, request.form["password"]):
             return redirect(url_for("main.dashboard"))
-        error = "Invalid username or password"
+        else:
+            error = "Invalid username or password"
     return render_template("login.html", error=error)
 
 
@@ -159,6 +174,13 @@ def ai_result(user, job_id):
     if not job:
         abort(404)
     return render_template("ai_result.html", user=user, job=job)
+
+
+@bp.route("/ai/<int:job_id>/retry", methods=["POST"])
+@login_required()
+def ai_retry(user, job_id):
+    ai_module.retry_job(_db(), job_id)
+    return redirect(url_for("main.ai_result", job_id=job_id))
 
 
 @bp.route("/ai/<int:job_id>/publish", methods=["POST"])

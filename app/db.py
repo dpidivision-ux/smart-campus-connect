@@ -59,6 +59,11 @@ CREATE TABLE IF NOT EXISTS materials (
     created_by INTEGER NOT NULL REFERENCES users(id),
     created_at REAL NOT NULL
 );
+CREATE TABLE IF NOT EXISTS login_attempts (
+    username TEXT PRIMARY KEY,
+    failures INTEGER NOT NULL DEFAULT 0,
+    locked_until REAL NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS material_reads (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     material_id INTEGER NOT NULL REFERENCES materials(id),
@@ -98,6 +103,9 @@ def init_db(path):
         mcols = [r["name"] for r in con.execute("PRAGMA table_info(materials)")]
         if "course_tag" not in mcols:
             con.execute("ALTER TABLE materials ADD COLUMN course_tag TEXT NOT NULL DEFAULT ''")
+        jcols = [r["name"] for r in con.execute("PRAGMA table_info(ai_jobs)")]
+        if "attempts" not in jcols:
+            con.execute("ALTER TABLE ai_jobs ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0")
         if con.execute("SELECT COUNT(*) c FROM weekly_pool").fetchone()["c"] == 0:
             con.execute("INSERT INTO weekly_pool (id, total_minutes) VALUES (1, ?)", (6000,))
 
