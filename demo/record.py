@@ -55,6 +55,12 @@ def slow_type(pg, selector, text, delay=28):
 
 
 def main():
+    # fresh demo DB so repeated recordings never duplicate published content
+    db = os.path.join(ROOT, "campus.db")
+    if os.path.exists(db):
+        os.remove(db)
+    subprocess.run([sys.executable, "seed.py"], cwd=ROOT, check=True,
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     srv = subprocess.Popen([sys.executable, "run.py"], cwd=ROOT,
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(2.5)
