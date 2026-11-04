@@ -59,6 +59,9 @@ def endpoint_configured():
 def _call_model(kind, text):
     prompts = {"summary": SUMMARY_PROMPT, "quiz": QUIZ_PROMPT, "condense": CONDENSE_PROMPT}
     prompt = prompts[kind] % text[:12000]
+    from . import spend_guard
+    if BASE_URL.rstrip("/") == spend_guard.ENDPOINT:
+        return _call_model_meta(prompt)
     resp = requests.post(
         BASE_URL.rstrip("/") + "/chat/completions",
         headers={"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"},
@@ -70,6 +73,64 @@ def _call_model(kind, text):
     )
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"].strip()
+
+
+def _call_model_meta(prompt):
+    """Direct Meta paid path: Responses API with a provider-counted,
+    ledger-reserved budget check before the generation send.
+
+    Always fails closed without an enabled, reviewed ledger policy.
+    Single-turn, no tools, store=False. Other provider paths are
+    unchanged and are not covered by this guard.
+    """
+    from . import spend_guard
+    base = BASE_URL.rstrip("/")
+    headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+    body = {"model": DEFAULT_MODEL,
+            "input": prompt,
+            "max_output_tokens": spend_guard.OUTPUT,
+            "temperature": 0.3,
+            "reasoning": {"effort": "low"},
+            "store": False}
+    if len(prompt.encode("utf-8")) > spend_guard.MAX_INPUT_BYTES:
+        raise spend_guard.GuardBlocked("Serialized prompt exceeds byte cap")
+    # Atomic reservation BEFORE ANY network traffic, including the count
+    # call: one fixed attempt ceiling covers count + generation, and failed
+    # or timed-out attempts keep the reservation.
+    reservation = spend_guard.reserve(BASE_URL, DEFAULT_MODEL, spend_guard.OUTPUT)
+    try:
+        # Provider's own tokenizer count for this exact rendered request
+        # (includes injected scaffolding, which billing excludes).
+        cnt = requests.post(base + "/responses/input_tokens", headers=headers,
+                            json=body, timeout=TIMEOUT, allow_redirects=False)
+        cnt.raise_for_status()
+        input_tokens = int(cnt.json()["input_tokens"])
+        if input_tokens > spend_guard.MAX_INPUT_TOKENS:
+            spend_guard.record(reservation, "blocked-input-ceiling",
+                               {"input_tokens_counted": input_tokens})
+            raise spend_guard.GuardBlocked("Input token count outside sanity ceiling")
+        resp = requests.post(base + "/responses", headers=headers, json=body,
+                             timeout=TIMEOUT, allow_redirects=False)
+        resp.raise_for_status()
+        data = resp.json()
+        usage = data.get("usage") or {}
+        usage["input_tokens_counted"] = input_tokens
+        if (usage.get("input_tokens", 0) > spend_guard.MAX_INPUT_TOKENS
+                or usage.get("output_tokens", 0) > spend_guard.OUTPUT):
+            # Reported usage contradicts the hard ceilings; future calls halt.
+            spend_guard.record(reservation, "usage-contradicts-guard", usage)
+        else:
+            spend_guard.record(reservation, "response-received", usage)
+        texts = [c.get("text", "") for item in data.get("output", [])
+                 if item.get("type") == "message"
+                 for c in item.get("content", []) if c.get("type") == "output_text"]
+        return "".join(texts).strip()
+    except spend_guard.GuardBlocked:
+        raise
+    except Exception:
+        spend_guard.record(reservation, "failed-or-timeout")
+        raise
+
 
 
 def _extractive_fallback(text, max_sentences=5):
