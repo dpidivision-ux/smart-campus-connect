@@ -31,7 +31,7 @@ import time
 ENDPOINT = 'https://api.meta.ai/v1'
 MODEL = 'muse-spark-1.2'
 CONTEXT = 1048576
-OUTPUT = 900
+OUTPUT = 2500
 # Sanity ceiling on the provider-reported input count; legitimate prompts
 # here are ~4k tokens. Anything larger indicates a prompt-assembly bug.
 MAX_INPUT_TOKENS = 100000

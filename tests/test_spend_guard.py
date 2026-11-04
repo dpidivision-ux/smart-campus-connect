@@ -3,8 +3,8 @@ import sqlite3
 import pytest
 from app import spend_guard as g
 
-# Fixed per-attempt reservation: 2*MAX_INPUT_TOKENS input + 900 output.
-MICRO = g.reserve_micro_for(g.MAX_INPUT_TOKENS, g.OUTPUT)  # 253825
+# Fixed per-attempt reservation: 2*MAX_INPUT_TOKENS input + 2500 output.
+MICRO = g.reserve_micro_for(g.MAX_INPUT_TOKENS, g.OUTPUT)  # 260625
 
 def setup(tmp_path, monkeypatch, budget=MICRO, cap=20):
     p = str(tmp_path / 'persistent-spend.sqlite')
@@ -14,18 +14,18 @@ def setup(tmp_path, monkeypatch, budget=MICRO, cap=20):
     return p
 
 def call(now=100):
-    return g.reserve(g.ENDPOINT, g.MODEL, 900, now)
+    return g.reserve(g.ENDPOINT, g.MODEL, 2500, now)
 
 def test_reserve_math():
-    assert MICRO == 253825
-    assert g.reserve_micro_for(0) == 3825
+    assert MICRO == 260625
+    assert g.reserve_micro_for(0) == 10625
 
 def test_disabled(monkeypatch):
     monkeypatch.delenv('SCC_PAID_GUARD', raising=False)
     with pytest.raises(g.GuardBlocked):
         call()
     with pytest.raises(g.GuardBlocked):
-        g.check_static(g.ENDPOINT, g.MODEL, 900)
+        g.check_static(g.ENDPOINT, g.MODEL, 2500)
 
 def test_budget_persists_uncertain_failure(tmp_path, monkeypatch):
     p = setup(tmp_path, monkeypatch)
@@ -41,10 +41,10 @@ def test_budget_persists_uncertain_failure(tmp_path, monkeypatch):
 def test_cutoff_and_allowlist(tmp_path, monkeypatch):
     setup(tmp_path, monkeypatch)
     for endpoint, model, tokens, now in [
-            (g.ENDPOINT, 'other', 900, 100),
-            ('https://other.invalid', g.MODEL, 900, 100),
-            (g.ENDPOINT, g.MODEL, 901, 100),
-            (g.ENDPOINT, g.MODEL, 900, 200)]:
+            (g.ENDPOINT, 'other', 2500, 100),
+            ('https://other.invalid', g.MODEL, 2500, 100),
+            (g.ENDPOINT, g.MODEL, 2501, 100),
+            (g.ENDPOINT, g.MODEL, 2500, 200)]:
         with pytest.raises(g.GuardBlocked):
             g.reserve(endpoint, model, tokens, now)
 
@@ -88,8 +88,8 @@ def _meta_mock(monkeypatch, tmp_path, budget=MICRO, count=1000, fail_at=None):
         if url.endswith('/responses/input_tokens'):
             return R({'object': 'response.input_tokens', 'input_tokens': count})
         assert url.endswith('/responses')
-        assert kw['json']['max_output_tokens'] == 900
-        assert kw['json']['reasoning'] == {'effort': 'low'}
+        assert kw['json']['max_output_tokens'] == 2500
+        assert kw['json']['reasoning'] == {"effort": "minimal"}
         assert kw['json']['store'] is False
         return R({'status': 'completed',
                   'output': [{'type': 'message', 'role': 'assistant',
@@ -160,7 +160,7 @@ def test_usage_contradiction_halts_future_calls(monkeypatch, tmp_path):
             return R({'input_tokens': 1000})
         return R({'status': 'completed',
                   'output': [{'type': 'message', 'content': [{'type': 'output_text', 'text': 'x'}]}],
-                  'usage': {'input_tokens': 1000, 'output_tokens': 901}})  # over hard cap
+                  'usage': {'input_tokens': 1000, 'output_tokens': 2501}})  # over hard cap
     monkeypatch.setattr(ai_module.requests, 'post', post)
     assert ai_module._call_model('summary', 'example') == 'x'
     with pytest.raises(g.GuardBlocked, match='contradicted'):

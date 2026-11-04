@@ -79,3 +79,20 @@ def test_configured_endpoint_is_not_presented_as_verified_live(tmp_path, monkeyp
     html = client.get("/dashboard").get_data(as_text=True)
     assert "configured: untested-model" in html
     assert "live: untested-model" not in html
+
+
+def test_empty_model_output_is_a_failed_attempt_not_done(tmp_path, monkeypatch):
+    path = str(tmp_path / "empty.db")
+    db.init_db(path)
+    monkeypatch.setattr(ai_module, "BASE_URL", "https://provider-a.invalid/v1")
+    monkeypatch.setattr(ai_module, "DEFAULT_MODEL", "model-a")
+    monkeypatch.setattr(ai_module, "_call_model", lambda kind, text: "  \n")
+    job_id, status, result = ai_module.submit_job(path, "quiz", "Routers forward packets between networks.")
+    assert status == "queued"
+    assert "NOT AI OUTPUT" in result
+    job = ai_module.get_job(path, job_id)
+    assert job["status"] == "queued" and job["model"] == "offline-fallback"
+    # An empty result must never enter the cache.
+    monkeypatch.setattr(ai_module, "_call_model", lambda kind, text: "Q: real question")
+    job2, status2, _ = ai_module.submit_job(path, "quiz", "Routers forward packets between networks.")
+    assert status2 == "done" and ai_module.get_job(path, job2)["model"] == "model-a"

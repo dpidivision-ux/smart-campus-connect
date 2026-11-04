@@ -90,7 +90,7 @@ def _call_model_meta(prompt):
             "input": prompt,
             "max_output_tokens": spend_guard.OUTPUT,
             "temperature": 0.3,
-            "reasoning": {"effort": "low"},
+            "reasoning": {"effort": "minimal"},
             "store": False}
     if len(prompt.encode("utf-8")) > spend_guard.MAX_INPUT_BYTES:
         raise spend_guard.GuardBlocked("Serialized prompt exceeds byte cap")
@@ -171,6 +171,12 @@ def _complete_with_model(db_path, job_id, key, kind, source_text):
     try:
         result = _call_model(kind, source_text)
     except Exception:
+        with db.connect(db_path) as con:
+            con.execute("UPDATE ai_jobs SET attempts=attempts+1 WHERE id=?", (job_id,))
+        return False
+    if not (result or "").strip():
+        # A provider can spend its whole output budget on reasoning and return
+        # no text. That is a failed attempt, never a completed job or a cache hit.
         with db.connect(db_path) as con:
             con.execute("UPDATE ai_jobs SET attempts=attempts+1 WHERE id=?", (job_id,))
         return False
