@@ -6,17 +6,21 @@ Each segment gets a 1.2s tail pad (freeze frame + audio silence) for breathing r
 import argparse, os, shutil, subprocess, sys, tempfile
 
 FFMPEG = shutil.which("ffmpeg")
-TAIL = 1.2
+TAIL = 0.45
 OUT = "video/out"
 os.makedirs(OUT, exist_ok=True)
 
-PARTS = {  # segment index -> ("card", png) or ("seg", webm)
+PARTS = {
     1: ("card", "video/cards/s1-title.png"),
     2: ("seg", "video/segs/s2.webm"),
-    3: ("seg", "video/segs/s3.webm"),
-    4: ("seg", "video/segs/s4.webm"),
-    5: ("seg", "video/segs/s5.webm"),
-    6: ("card", "video/cards/s6-close.png"),
+    3: ("seg", "video/segs/e1.webm"),
+    4: ("seg", "video/segs/s3.webm"),
+    5: ("seg", "video/segs/s4.webm"),
+    6: ("seg", "video/segs/e3.webm"),
+    7: ("seg", "video/segs/s5.webm"),
+    8: ("seg", "video/segs/e2.webm"),
+    9: ("seg", "video/segs/e4.webm"),
+    10: ("card", "video/cards/s6-close.png"),
 }
 
 def dur(path):
