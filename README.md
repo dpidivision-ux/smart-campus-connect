@@ -106,8 +106,10 @@ a production server, HTTPS and a persistent random `SCC_SECRET`. Without that
 environment setting, the local prototype creates a fresh random signing key
 at startup, so sessions reset on restart.
 
-Files already under `video/out/`, `video/segs/` and `video/check/` are historical
-work-in-progress artifacts, not the final submission video. The old
-`video/out/smart-campus-connect-demo.mp4` is incomplete and shows an earlier
-offline-fallback build. Do not treat it as a Muse demo. No final video URL is
-available yet. Final video publication requires the owner's review.
+Files under `video/segs/`, `video/check/` and `video/check2/` are
+work-in-progress artifacts from the build. The approved demo video is
+`video/out/final/smart-campus-connect-demo.mp4` (124 seconds): its assistant
+segment shows real calls to Meta's Llama 3.3 70B open-weight model served
+through Cloudflare Workers AI, alongside the clearly labeled non-AI fallback.
+It is not a Muse demo. Watch link (unlisted):
+https://youtu.be/8KtqX9B2A2w
