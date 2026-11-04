@@ -6,6 +6,13 @@ expensive and students get limited online hours.
 
 **Meta Global AI Developer Hackathon 2026 - theme: Build for Your World**
 
+Everything in this repository was designed and built new during the
+hackathon window (Oct 26 - Nov 4, 2026). This is not a chatbot wrapper:
+the core is an offline-first allocation, caching and campus-network
+publishing system; the AI study tools are one component, engineered
+around scarce connectivity, with every model call logged, cached and
+honestly labeled.
+
 ## What it does
 
 1. **Fair, transparent internet-hour allocation.** The administrator sets
